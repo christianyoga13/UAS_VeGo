@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
     id("com.google.gms.google-services")
+    id("kotlin-parcelize")
 }
 
 android {
@@ -65,6 +66,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation-layout:1.5.2")
     implementation("androidx.compose.foundation:foundation:1.5.2")
     implementation(libs.firebase.database.ktx)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.firebase.storage.ktx)
     testImplementation(libs.junit)
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.2")
     androidTestImplementation(libs.androidx.junit)
@@ -78,6 +81,8 @@ dependencies {
     implementation("com.google.accompanist:accompanist-pager:0.30.1")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.30.1")
     implementation("com.google.accompanist:accompanist-pager:0.26.2-beta")
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0")
 
 
     val lifecycle_version = "2.2.0"

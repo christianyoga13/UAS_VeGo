@@ -1,6 +1,7 @@
 package com.example.uts_vego
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -22,12 +23,18 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +46,8 @@ import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 data class CarouselItem(
     val imageResId: Int,
@@ -57,7 +66,7 @@ class OnlineOrder : ComponentActivity() {
 }
 
 @Composable
-fun OnlineOrderScreen(navController: NavController) {
+fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
     val items = listOf(
         CarouselItem(R.drawable.heavy_meal, "Heavy Meal"),
         CarouselItem(R.drawable.snack, "Snack"),
@@ -65,9 +74,53 @@ fun OnlineOrderScreen(navController: NavController) {
         CarouselItem(R.drawable.drink, "Drink")
     )
 
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+
+    var isAdmin by remember { mutableStateOf(false) }
+
+    val user = auth.currentUser
+    if (user != null) {
+        // Ambil role pengguna dari Firestore
+        LaunchedEffect(user.uid) {
+            db.collection("users").document(user.uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        val role = document.getString("role")
+                        if (role == "admin") {
+                            isAdmin = true  // Jika role admin, set isAdmin = true
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(context, "Gagal mendapatkan data role", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+
+    // Memuat data restoran saat screen dibuka
+    LaunchedEffect(Unit) {
+        viewModel.fetchRestosFromFirestore()  // Memanggil untuk mengambil data restoran
+    }
+
     Scaffold(
         topBar = {
-            TopBarWithSearchBar(navController)
+            TopAppBar(
+                title = { Text("Online Order") },
+                actions = {
+                    if (isAdmin) {
+                        TextButton(onClick = { navController.navigate("AdminScreen") }) {
+                            Text("Admin", color = MaterialTheme.colors.onPrimary)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(0.dp))
+                    }
+
+                }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -83,6 +136,30 @@ fun OnlineOrderScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(24.dp))
             OrderNowCarousel()
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Restoran yang Ditambahkan
+            if (viewModel.restoList.isNotEmpty()) {
+                ReusableRestoSection(
+                    title = "Your Added Restaurants",
+                    items = viewModel.restoList.map { resto ->
+                        RestoItem(
+                            imageRes = R.drawable.resto_image, // Gambar default
+                            name = resto.name,
+                            rating = 4.5, // Default rating
+                            time = "20 MINS", // Default time
+                            distance = "1.5 Km", // Default distance
+                            tags = listOf("User Added"),
+                            menuItems = resto.menuItems
+                        )
+                    },
+                    onSeeAllClick = { /* Handle See All */ },
+                    onCardClick = { restoItem ->
+                        navController.navigate("restoDetail/${restoItem.name}")
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             ReusableRestoSection(
                 title = "24 Hours",
                 items = getRestoItems(),
@@ -103,6 +180,7 @@ fun OnlineOrderScreen(navController: NavController) {
         }
     }
 }
+
 
 @Composable
 fun TopBarWithSearchBar(navController: NavController) {
@@ -378,6 +456,7 @@ fun ReusableRestoSection(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
+        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -392,6 +471,9 @@ fun ReusableRestoSection(
                 Text(text = "See All", color = Color.Green)
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // LazyRow untuk menampilkan daftar restoran
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -408,33 +490,80 @@ fun RestoCard(restoItem: RestoItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .width(180.dp)
-            .clickable { onClick() }
+            .wrapContentHeight()
+            .clickable { onClick() },
+        elevation = 4.dp,
+        shape = RoundedCornerShape(8.dp)
     ) {
-        Column {
+        Column(
+            modifier = Modifier.padding(8.dp)
+        ) {
+            // Gambar
             Image(
                 painter = painterResource(id = restoItem.imageRes),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
+                    .clip(RoundedCornerShape(8.dp))
             )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Nama restoran
             Text(
                 text = restoItem.name,
-                modifier = Modifier.padding(8.dp),
-                maxLines = 1
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Rating dan waktu/jarak
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = null,
+                    tint = Color.Yellow,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = restoItem.rating.toString(),
+                    style = MaterialTheme.typography.body2,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${restoItem.time} • ${restoItem.distance}",
+                    style = MaterialTheme.typography.body2,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tags
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                restoItem.tags.forEach { tag ->
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.caption,
+                        color = Color.White,
+                        modifier = Modifier
+                            .background(
+                                color = Color.Green,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
-
-data class RestoItem(
-    val imageRes: Int,
-    val name: String,
-    val rating: Double,
-    val time: String,
-    val distance: String,
-    val tags: List<String>
-)
 
 fun getFastServeItems(): List<RestoItem> {
     return listOf(
@@ -444,7 +573,11 @@ fun getFastServeItems(): List<RestoItem> {
             rating = 4.8,
             time = "15 MINS",
             distance = "0.8 Km",
-            tags = listOf("Healthy", "Cheap")
+            tags = listOf("Healthy", "Cheap"),
+            menuItems = listOf(
+                MenuItem("Fruit + Vegetable Salad", 20000, "vegan_food"),
+                MenuItem("Vegan Rendang", 25000, "vegan_food")
+            )
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
@@ -452,7 +585,11 @@ fun getFastServeItems(): List<RestoItem> {
             rating = 4.7,
             time = "10 MINS",
             distance = "1.0 Km",
-            tags = listOf("Quick Serve", "Popular")
+            tags = listOf("Quick Serve", "Popular"),
+            menuItems = listOf(
+                MenuItem("Mie Kangkung", 20000, "vegan_food"),
+                MenuItem("Satay for Vegan", 25000, "vegan_food")
+            )
         )
     )
 }
@@ -465,7 +602,11 @@ fun getBigDiscountItems(): List<RestoItem> {
             rating = 4.5,
             time = "30 MINS",
             distance = "2.0 Km",
-            tags = listOf("Cheap", "Discount")
+            tags = listOf("Cheap", "Discount"),
+            menuItems = listOf(
+                MenuItem("Vegetable Pizza", 20000, "vegan_food"),
+                MenuItem("Cream Soup", 25000, "vegan_food")
+            )
         ),
         RestoItem(
             imageRes = R.drawable.vegan_food,
@@ -473,7 +614,11 @@ fun getBigDiscountItems(): List<RestoItem> {
             rating = 4.3,
             time = "25 MINS",
             distance = "1.5 Km",
-            tags = listOf("Deal", "Limited")
+            tags = listOf("Deal", "Limited"),
+            menuItems = listOf(
+                MenuItem("Candy", 20000, "vegan_food"),
+                MenuItem("Cookies", 25000, "vegan_food")
+            )
         )
     )
 }
@@ -486,7 +631,11 @@ fun getBestSellerItems(): List<RestoItem> {
             rating = 4.9,
             time = "20 MINS",
             distance = "1.2 Km",
-            tags = listOf("Best Resto", "Top Rated")
+            tags = listOf("Best Resto", "Top Rated"),
+            menuItems = listOf(
+                MenuItem("Salad Buah", 20000, "vegan_food"),
+                MenuItem("Sup Sehat", 25000, "vegan_food")
+            )
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
@@ -494,7 +643,11 @@ fun getBestSellerItems(): List<RestoItem> {
             rating = 4.8,
             time = "15 MINS",
             distance = "1.0 Km",
-            tags = listOf("Recommended", "Vegan")
+            tags = listOf("Recommended", "Vegan"),
+            menuItems = listOf(
+                MenuItem("Salad Buah", 20000, "vegan_food"),
+                MenuItem("Sup Sehat", 25000, "vegan_food")
+            )
         )
     )
 }
@@ -507,7 +660,11 @@ fun getRestoItems(): List<RestoItem> {
             rating = 4.5,
             time = "20 MINS",
             distance = "1.5 Km",
-            tags = listOf("Best Resto", "Cheap")
+            tags = listOf("Best Resto", "Cheap"),
+            menuItems = listOf(
+                MenuItem("Salad Buah", 20000, "vegan_food"),
+                MenuItem("Sup Sehat", 25000, "vegan_food")
+            )
         ),
         RestoItem(
             imageRes = R.drawable.vegan_food,
@@ -515,7 +672,11 @@ fun getRestoItems(): List<RestoItem> {
             rating = 4.7,
             time = "20 MINS",
             distance = "1.5 Km",
-            tags = listOf("Near You", "Recommend")
+            tags = listOf("Near You", "Recommend"),
+            menuItems = listOf(
+                MenuItem("Pecel Vegan", 18000, "vegan_food"),
+                MenuItem("Sate Vegan", 22000, "vegan_food")
+            )
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
@@ -523,7 +684,11 @@ fun getRestoItems(): List<RestoItem> {
             rating = 4.8,
             time = "25 MINS",
             distance = "2.0 Km",
-            tags = listOf("Flexitarian", "Popular")
+            tags = listOf("Flexitarian", "Popular"),
+            menuItems = listOf(
+                MenuItem("Ramen Vegan", 30000, "vegan_food"),
+                MenuItem("Sushi Vegan", 28000, "vegan_food")
+            )
         )
     )
 }
@@ -532,6 +697,6 @@ fun getRestoItems(): List<RestoItem> {
 @Composable
 fun OnlineOrderPreview() {
     MaterialTheme {
-        OnlineOrderScreen(navController = rememberNavController())
+        OnlineOrderScreen(navController = rememberNavController(), viewModel = RestoViewModel())
     }
 }

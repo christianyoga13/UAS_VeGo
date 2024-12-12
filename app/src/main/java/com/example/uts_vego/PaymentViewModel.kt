@@ -72,7 +72,6 @@ class PaymentViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Update balance
                 val newBalance = _balance.value + amount
                 realtimeDb.getReference("users")
                     .child(userId)

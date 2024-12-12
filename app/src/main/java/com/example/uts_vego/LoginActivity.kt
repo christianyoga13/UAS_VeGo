@@ -2,7 +2,6 @@ package com.example.uts_vego
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -40,11 +39,21 @@ class LoginActivity : AppCompatActivity() {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    startActivity(Intent(this, MainActivity::class.java))
-                    finish()
+                    checkAdminRole()
                 } else {
                     Toast.makeText(this, "Authentication failed.", Toast.LENGTH_SHORT).show()
                 }
             }
+    }
+
+    private fun checkAdminRole() {
+        val user = FirebaseAuth.getInstance().currentUser
+        user?.getIdToken(true)?.addOnSuccessListener { result ->
+            val claims = result.claims
+            val isAdmin = claims["admin"] as? Boolean ?: false
+
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+        }
     }
 }

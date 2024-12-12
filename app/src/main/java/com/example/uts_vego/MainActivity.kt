@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -25,8 +26,29 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         } else {
+            checkAdminRole()
             setContent {
                 MainAppNavigation()
+            }
+        }
+    }
+
+    private fun checkAdminRole() {
+        val user = FirebaseAuth.getInstance().currentUser
+        user?.getIdToken(true)?.addOnSuccessListener { result ->
+            val claims = result.claims
+            val isAdmin = claims["admin"] as? Boolean ?: false
+
+            if (isAdmin) {
+                // Jika pengguna admin, tampilkan tampilan admin
+                setContent {
+                    MainAppNavigation()
+                }
+            } else {
+                // Jika bukan admin, arahkan ke tampilan normal
+                setContent {
+                    MainAppNavigation()
+                }
             }
         }
     }
@@ -38,18 +60,26 @@ fun MainAppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Gunakan ViewModel Bersama
+    val restoViewModel: RestoViewModel = remember { RestoViewModel() }
+    restoViewModel.fetchRestosFromFirestore()
+    val allItems = restoViewModel.restoList + getRestoItems() + getFastServeItems() + getBigDiscountItems()
+
     Scaffold(
         bottomBar = {
+            // Hanya tampilkan BottomNavigationBar pada rute tertentu
             if (currentRoute in listOf("home", "payment", "promo", "profile_home")) {
                 BottomNavigationBar(navController)
             }
         }
     ) { paddingValues ->
+        // Navigasi Utama
         NavHost(
             navController = navController,
             startDestination = "home",
             modifier = Modifier.padding(paddingValues)
         ) {
+            // Halaman Utama
             composable("home") {
                 HomeScreenContent(navController)
             }
@@ -60,38 +90,43 @@ fun MainAppNavigation() {
                 PromoScreen(navController)
             }
 
-            // Profile Related Routes
+            // Halaman Profil
             composable("profile_home") {
                 ProfileScreen(navController)
             }
             composable("yourProfile") {
                 YourProfileScreen(navController)
             }
-            composable("forum") {
-                ForumContent(navController)
-            }
+
+            // Online Order Screen
             composable("onlineOrder") {
-                OnlineOrderScreen(navController)
+                OnlineOrderScreen(navController, viewModel = restoViewModel)
             }
+
+            // Detail Restoran
             composable(
                 route = "restoDetail/{name}",
                 arguments = listOf(navArgument("name") { type = NavType.StringType })
             ) { backStackEntry ->
                 val restoName = backStackEntry.arguments?.getString("name") ?: ""
 
-                // Gabungkan semua data dari berbagai fungsi
-                val allItems = getRestoItems() + getFastServeItems() + getBigDiscountItems()
-
                 val restoItem = allItems.find { it.name == restoName }
 
                 if (restoItem != null) {
                     RestoDetailScreen(navController = navController, restoItem = restoItem)
                 } else {
-                    Text("Resto not found") // Handle jika tidak ada data
+                    Text("Resto not found") // Handle jika data tidak ditemukan
                 }
             }
 
+            // Admin Screen
+            composable("AdminScreen") {
+                AdminScreen(navController = navController, viewModel = restoViewModel) // Teruskan ke AdminScreen
+            }
+            composable("forum") { ForumScreen(navController) } // Tambahkan rute forum
+            composable("post") { PostForumScreen(navController) }
         }
     }
 }
+
 
