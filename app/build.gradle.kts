@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "com.example.uts_vego"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.uts_vego"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -83,7 +83,7 @@ dependencies {
     implementation("com.google.accompanist:accompanist-pager:0.26.2-beta")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0")
-
+    implementation ("androidx.appcompat:appcompat:1.6.1")
 
     val lifecycle_version = "2.2.0"
 
