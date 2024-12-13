@@ -4,7 +4,6 @@ import androidx.annotation.DrawableRes
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 
 data class RestoItem(
     @DrawableRes val imageRes: Int,
@@ -68,7 +67,7 @@ class RestoViewModel : ViewModel() {
 
         db.collection("restaurants")
             .add(resto)
-            .addOnSuccessListener { documentReference ->
+            .addOnSuccessListener {
                 _restoList.add(
                     RestoItem(
                         imageRes = R.drawable.resto_image,
