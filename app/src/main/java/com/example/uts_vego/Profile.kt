@@ -141,15 +141,29 @@ fun ProfileScreen(navController: NavController) {
                 ProfileMenuItem("Your Profile") {
                     navController.navigate("yourProfile")
                 }
-                // Tambahkan menu lain di sini
+                ProfileMenuItem("Payment Method") {
+                    navController.navigate("payment")
+                }
+                ProfileMenuItem("Order") {
+                    navController.navigate("checkout_page")
+                }
+                ProfileMenuItem("Notification") {
+                    navController.navigate("notification")
+                }
+                ProfileMenuItem("Setting") {
+                    navController.navigate("setting")
+                }
+                ProfileMenuItem("Help Center") {
+                    navController.navigate("helpCenter")
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
-                    FirebaseAuth.getInstance().signOut() // Proses logout Firebase
-                    val intent = Intent(context, LoginActivity::class.java) // Pindah ke LoginActivity
+                    FirebaseAuth.getInstance().signOut()
+                    val intent = Intent(context, LoginActivity::class.java)
                     context.startActivity(intent)
                     (context as? MainActivity)?.finish()
                 },
@@ -178,15 +192,10 @@ fun ProfileMenuItem(text: String, onClick: () -> Unit) {
                 text = text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color.Black,
+                color = Color(0xFFFFA500),
                 modifier = Modifier.weight(1f)
             )
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "Navigate to $text",
-                tint = Color.Gray
-            )
         }
-        Divider(modifier = Modifier.padding(top = 12.dp), color = Color.Gray)
+        Divider(modifier = Modifier.padding(top = 12.dp), color = Color(0xFFFFA500))
     }
 }

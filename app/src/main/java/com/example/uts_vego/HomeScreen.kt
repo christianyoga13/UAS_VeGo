@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.*
+import com.example.uts_vego.font.MyCustomFont
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
@@ -72,7 +73,7 @@ fun TopBarWithSearchBarHome(navController: NavController) {
     Column(modifier = Modifier.background(Color(0xFFFFA500))) {
         TopAppBar(
             title = {
-                Text(text = "Vego", color = Color.White)
+                Text(text = "Vego", color = Color.White, fontFamily = MyCustomFont, fontSize = 32.sp, modifier = Modifier.padding(top = 8.dp))
             },
             backgroundColor = Color(0xFFFFA500),
             elevation = 0.dp

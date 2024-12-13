@@ -11,7 +11,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,15 +20,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 
 @Composable
-fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
+fun RestoDetailScreen(navController: NavController, restoItem: RestoItem, cartViewModel: CartViewModel) {
+    val cartItems by cartViewModel.cartItemsState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,6 +40,19 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
                 },
                 backgroundColor = Color.White
             )
+        },
+        bottomBar = {
+            if (cartItems.isNotEmpty()) {
+                // Menggunakan CustomBottomCartBar yang sudah disesuaikan
+                CustomBottomCartBar(
+                    itemCount = cartItems.sumOf { it.quantity },
+                    totalPrice = cartItems.sumOf { it.price * it.quantity },
+                    restaurantName = restoItem.name,
+                    onCheckoutClicked = {
+                        navController.navigate("checkout_page")
+                    }
+                )
+            }
         }
     ) { paddingValues ->
         Column(
@@ -48,28 +61,19 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Display Image (either from URL or drawable resource)
+            // Gambar resto
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
             ) {
-                if (restoItem.imageRes is Int) {
-                    Image(
-                        painter = painterResource(id = restoItem.imageRes),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = restoItem.imageRes as Int),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                Image(
+                    painter = painterResource(id = restoItem.imageRes),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -81,7 +85,7 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "${restoItem.name} - Gading Serpong", // You can adjust the location
+                        text = "${restoItem.name} - Gading Serpong",
                         style = MaterialTheme.typography.h6,
                         fontWeight = FontWeight.Bold
                     )
@@ -107,7 +111,7 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Menu", // Updated to "Menu"
+                text = "Menu",
                 style = MaterialTheme.typography.h6,
                 fontWeight = FontWeight.Bold
             )
@@ -120,23 +124,26 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem) {
                 modifier = Modifier.fillMaxHeight()
             ) {
                 items(restoItem.menuItems) { menu ->
-                    MenuCard(menu = menu)
+                    MenuCard(
+                        menu = menu,
+                        onAddToCart = {
+                            cartViewModel.addToCart(menu)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
-
-
 @Composable
-fun MenuCard(menu: MenuItem) {
+fun MenuCard(menu: MenuItem, onAddToCart: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = 4.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp) // Adjust card height as needed
+            .height(180.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
@@ -145,8 +152,7 @@ fun MenuCard(menu: MenuItem) {
                     .fillMaxSize()
                     .padding(8.dp)
             ) {
-
-                if (menu.image.isNotEmpty()){
+                if (menu.image.isNotEmpty()) {
                     AsyncImage(
                         model = menu.image,
                         contentDescription = null,
@@ -154,8 +160,7 @@ fun MenuCard(menu: MenuItem) {
                             .fillMaxWidth()
                             .height(100.dp)
                             .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Crop,
-                        error = painterResource(id = R.drawable.ic_launcher_foreground) // Placeholder
+                        contentScale = ContentScale.Crop
                     )
                 }
 
@@ -176,46 +181,86 @@ fun MenuCard(menu: MenuItem) {
             }
 
             IconButton(
-                onClick = { /* Handle add to cart */ },
+                onClick = { onAddToCart() },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(36.dp)
                     .background(Color(0xFFFFA500), shape = RoundedCornerShape(50))
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_cart), // Assuming you have an add to cart icon
+                    painter = painterResource(id = R.drawable.ic_cart),
                     contentDescription = "Add to cart",
                     tint = Color.White
                 )
             }
         }
-
     }
 }
 
-fun getRecommendedItems(): List<MenuItem> {
-    return listOf(
-        MenuItem("Drumstick Vegetarian", 20000, "vegan_food"),
-        MenuItem("Gyoza Vegetarian", 25000, "vegan_food"),
-        MenuItem("Perkedel Vegetarian", 20000, "vegan_food"),
-        MenuItem("Daging Vegetarian", 25000, "vegan_food")
-        // Add more menu items as needed
-    )
+@Composable
+fun CustomBottomCartBar(
+    itemCount: Int,
+    totalPrice: Int,
+    restaurantName: String,
+    onCheckoutClicked: () -> Unit
+) {
+    Card(
+        backgroundColor = Color(0xFFFFA500),
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        elevation = 8.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Bagian kiri
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "$itemCount Menu",
+                    color = Color.White,
+                    style = MaterialTheme.typography.subtitle1,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Pesan antar dari $restaurantName",
+                    color = Color.White,
+                    style = MaterialTheme.typography.caption
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Rp $totalPrice",
+                    color = Color.White,
+                    style = MaterialTheme.typography.subtitle1,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Button(
+                    onClick = { onCheckoutClicked() },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.White),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_cart),
+                            contentDescription = "Cart",
+                            tint = Color(0xFFFFA500)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewRestoDetailScreen() {
-    RestoDetailScreen(
-        navController = rememberNavController(),
-        restoItem = RestoItem(
-            imageRes = R.drawable.resto_image, // Example drawable resource
-            name = "Vegetarian Restaurant",
-            rating = 4.5,
-            time = "10 min",
-            distance = "1 km",
-            tags = listOf("Vegetarian", "Healthy", "Vegan"),
-            menuItems = getRecommendedItems()
-        )
-    )
-}

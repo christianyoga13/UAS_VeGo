@@ -60,10 +60,13 @@ fun MainAppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Gunakan ViewModel Bersama
+    // Buat instance RestoViewModel
     val restoViewModel: RestoViewModel = remember { RestoViewModel() }
     restoViewModel.fetchRestosFromFirestore()
     val allItems = restoViewModel.restoList + getRestoItems() + getFastServeItems() + getBigDiscountItems()
+
+    // Buat instance CartViewModel
+    val cartViewModel: CartViewModel = remember { CartViewModel() }
 
     Scaffold(
         bottomBar = {
@@ -109,24 +112,30 @@ fun MainAppNavigation() {
                 arguments = listOf(navArgument("name") { type = NavType.StringType })
             ) { backStackEntry ->
                 val restoName = backStackEntry.arguments?.getString("name") ?: ""
-
                 val restoItem = allItems.find { it.name == restoName }
 
                 if (restoItem != null) {
-                    RestoDetailScreen(navController = navController, restoItem = restoItem)
+                    // Pass cartViewModel di sini jika RestoDetailScreen butuh cartViewModel.
+                    // Jika tidak butuh, bisa dihapus. Namun sebaiknya sama seperti sebelumnya.
+                    RestoDetailScreen(navController = navController, restoItem = restoItem, cartViewModel = cartViewModel)
                 } else {
-                    Text("Resto not found") // Handle jika data tidak ditemukan
+                    Text("Resto not found")
                 }
             }
 
             // Admin Screen
             composable("AdminScreen") {
-                AdminScreen(navController = navController, viewModel = restoViewModel) // Teruskan ke AdminScreen
+                AdminScreen(navController = navController, viewModel = restoViewModel)
             }
-            composable("forum") { ForumScreen(navController) } // Tambahkan rute forum
+            composable("forum") { ForumScreen(navController) }
             composable("post") { PostForumScreen(navController) }
+
+            composable("checkout_page") {
+                CheckoutPage(cartViewModel = cartViewModel)
+            }
         }
     }
 }
+
 
 
