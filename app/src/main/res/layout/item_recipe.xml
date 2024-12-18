@@ -1,0 +1,45 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_margin="8dp"
+    android:elevation="4dp"
+    android:background="#E0E0E0"
+    android:gravity="start|top"> <!-- Ensure content is aligned from top -->
+
+    <!-- Container for content and button, with space for the button to be aligned at the bottom -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:layout_weight="1"
+        android:gravity="start|top">
+
+        <!-- Recipe content -->
+        <TextView
+            android:id="@+id/text_recipe_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/black"
+            android:textSize="16sp"
+            android:padding="8dp"
+            android:maxLines="3"
+            android:ellipsize="end" />
+
+        <!-- Recipe image -->
+        <ImageView
+            android:id="@+id/image_recipe"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_show_more"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:text="Read more" />
+</LinearLayout>
