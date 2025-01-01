@@ -27,6 +27,7 @@
     import androidx.navigation.NavType
     import androidx.navigation.compose.*
     import androidx.navigation.navArgument
+    import com.example.settings.SettingsScreenWithScaffold
     import com.google.firebase.auth.FirebaseAuth
     import com.google.firebase.firestore.FirebaseFirestore
     import com.google.firebase.storage.FirebaseStorage
@@ -202,7 +203,9 @@
                     composable("addRecipe") {
                         Recipe2Screen(auth = FirebaseAuth.getInstance(), context = context, firestore = FirebaseFirestore.getInstance(), storage = FirebaseStorage.getInstance())
                     }
-
+                    composable("setting"){
+                        SettingsScreenWithScaffold(navController)
+                    }
                     composable(
                         route = "map/{restaurantId}/{total}",
                         arguments = listOf(

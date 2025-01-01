@@ -130,7 +130,7 @@ fun YourProfileScreen(navController: NavController) {
                                 Icon(
                                     Icons.Default.Edit,
                                     contentDescription = "Edit Profile",
-                                    tint = Color.White
+                                    tint = Color.Black
                                 )
                             }
                         }
