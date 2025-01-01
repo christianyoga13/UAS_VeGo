@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,7 +40,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Data class untuk Post
 data class Post(
     val content: String = "",
     val imageUrl: String = "",
@@ -54,7 +54,7 @@ fun ForumScreen(navController: NavHostController) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        firestore.collection("posts")
+        firestore.collection("forum")
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
@@ -71,12 +71,23 @@ fun ForumScreen(navController: NavHostController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Forum") },
-                actions = {
-                    IconButton(onClick = { navController.navigate("post") }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add")
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFFFA500))
+                    .statusBarsPadding()
+            ) {
+                TopAppBar(
+                    title = { Text("Forum Chat", color = Color.White) },
+                    backgroundColor = Color(0xFFFFA500),
+                    elevation = 0.dp,
+                    actions = {
+                        IconButton(onClick = { navController.navigate("post") }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add")
+                        }
                     }
-                })
+                )
+            }
+
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { navController.navigate("post") }) {
@@ -195,6 +206,18 @@ fun PostForumScreen(
                 Text("Pilih Gambar")
             }
 
+            Button(
+                onClick = {
+                    // Navigate back to the forum screen without posting
+                    navController.navigate("forum") {
+                        popUpTo("forum") { inclusive = true }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color.Gray)
+            ) {
+                Text("Cancel", color = Color.White)
+            }
+
             Button(onClick = {
                 if (postContent.isNotBlank()) {
                     if (imageUri != null) {
@@ -202,7 +225,7 @@ fun PostForumScreen(
                             postContent = ""
                             imageUri = null
                             navController.navigate("forum") {
-                                popUpTo("forum") { inclusive = true } // Menghapus screens sebelumnya dari backstack.
+                                popUpTo("forum") { inclusive = true }
                             }
                         }
                     } else {
@@ -210,8 +233,7 @@ fun PostForumScreen(
                             postContent = ""
                             imageUri = null
                             navController.navigate("forum") {
-                                popUpTo("forum") { inclusive = true } // Menghapus screens sebelumnya dari backstack.
-
+                                popUpTo("forum") { inclusive = true }
                             }
                         }
                     }
@@ -232,31 +254,46 @@ private fun uploadPostWithImage(
     firestore: FirebaseFirestore,
     storage: FirebaseStorage,
     context: Context,
-    auth: FirebaseAuth, // Tambahkan FirebaseAuth di sini
+    auth: FirebaseAuth,
     onSuccess: () -> Unit
 ) {
-    val imageRef = storage.reference.child("images/${System.currentTimeMillis()}.jpg")
+    val imageRef = storage.reference.child("images_forum/${System.currentTimeMillis()}.jpg")
     imageRef.putFile(imageUri)
         .addOnSuccessListener {
             imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
-                val userId = auth.currentUser?.uid ?: "" // Ambil userId. Berikan nilai default jika null.
+                val userId = auth.currentUser?.uid ?: ""
+                // Mendapatkan metadata dari gambar
+                imageRef.metadata.addOnSuccessListener { storageMetadata ->
+                    val contentType = storageMetadata.contentType ?: "unknown"
+                    val sizeBytes = storageMetadata.sizeBytes
+                    val creationTimeMillis = storageMetadata.creationTimeMillis
 
-                val post = hashMapOf(
-                    "content" to postContent,
-                    "imageUrl" to downloadUri.toString(),
-                    "username" to username,
-                    "userId" to userId, // Tambahkan userId ke data postingan
-                    "timestamp" to Timestamp.now()
-                )
-                firestore.collection("posts")
-                    .add(post)
-                    .addOnSuccessListener {
-                        Toast.makeText(context, "Postingan berhasil diupload!", Toast.LENGTH_SHORT).show()
-                        onSuccess()
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(context, "Gagal mengupload postingan: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+                    val post = hashMapOf(
+                        "content" to postContent,
+                        "imageUrl" to downloadUri.toString(),
+                        "username" to username,
+                        "userId" to userId,
+                        "timestamp" to Timestamp.now(),
+                        // Menyimpan metadata gambar
+                        "imageMetadata" to hashMapOf(
+                            "contentType" to contentType,
+                            "sizeBytes" to sizeBytes,
+                            "creationTimeMillis" to creationTimeMillis
+                        )
+                    )
+
+                    firestore.collection("forum")
+                        .add(post)
+                        .addOnSuccessListener {
+                            Toast.makeText(context, "Postingan berhasil diupload!", Toast.LENGTH_SHORT).show()
+                            onSuccess()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(context, "Gagal mengupload postingan: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }.addOnFailureListener { e ->
+                    Toast.makeText(context, "Gagal mendapatkan metadata gambar: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }.addOnFailureListener { e ->
                 Toast.makeText(context, "Gagal mengambil URL download gambar: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -271,19 +308,19 @@ private fun uploadPostWithoutImage(
     username: String,
     firestore: FirebaseFirestore,
     context: Context,
-    auth: FirebaseAuth, // Tambahkan FirebaseAuth di sini
+    auth: FirebaseAuth,
     onSuccess: () -> Unit
 ) {
-    val userId = auth.currentUser?.uid ?: ""  // Ambil userId. Berikan nilai default jika null.
+    val userId = auth.currentUser?.uid ?: ""
 
     val post = hashMapOf(
         "content" to postContent,
         "imageUrl" to "",
         "username" to username,
-        "userId" to userId, // Tambahkan userId ke data postingan
+        "userId" to userId,
         "timestamp" to Timestamp.now()
     )
-    firestore.collection("posts")
+    firestore.collection("forum")
         .add(post)
         .addOnSuccessListener {
             Toast.makeText(context, "Postingan berhasil diupload!", Toast.LENGTH_SHORT).show()

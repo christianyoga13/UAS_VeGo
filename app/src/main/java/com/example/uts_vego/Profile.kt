@@ -2,33 +2,36 @@ package com.example.uts_vego
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class Profile : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +51,7 @@ fun ProfileNavigation(navController: NavController) {
 
     Scaffold(
         bottomBar = {
-            if(currentRoute in listOf("profile_home")) {
+            if (currentRoute == "profile_home") {
                 BottomNavigationBar(navController)
             }
         }
@@ -58,27 +61,49 @@ fun ProfileNavigation(navController: NavController) {
             startDestination = "profile_home",
             modifier = Modifier.padding(paddingValues)
         ) {
-            // Define your main profile routes
             composable("profile_home") { ProfileScreen(navController) }
-            composable("yourProfile") { YourProfileScreen(navController) } // No bottom nav here
-//        composable("address") { AddressScreen(navController) }
-//        composable("paymentMethod") { PaymentMethodScreen(navController) }
-//        composable("order") { OrderScreen(navController) }
-//        composable("notification") { NotificationScreen(navController) }
-//        composable("setting") { SettingScreen(navController) }
-//        composable("helpCenter") { HelpCenterScreen(navController) }
+            composable("yourProfile") { YourProfileScreen(navController) }
+            composable("address") { AddressScreen(navController) }
+            composable("helpCenter") { HelpCenterScreen(navController) }
         }
     }
 }
 
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(navController: NavController, viewModel: PaymentViewModel = viewModel()) {
     val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    val user = auth.currentUser
+
+    var profileName by remember { mutableStateOf("No Name") }
+    var profileImageUrl by remember { mutableStateOf("") }
+    val balance by viewModel.balance.collectAsState()
+
+    // Fetch user data from Firestore
+    LaunchedEffect(user) {
+        user?.uid?.let { uid ->
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        profileName = document.getString("name") ?: "No Name"
+                        profileImageUrl = document.getString("profileImage") ?: ""
+                    } else {
+                        Toast.makeText(context, "No profile found.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Toast.makeText(context, "Error loading profile: ${exception.message}", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Profile", color = Color.White, fontWeight = FontWeight.Bold) },
-                backgroundColor = Color(0xFFFFA500)
+                title = { Text("Profile", color = Color.White) },
+                backgroundColor = Color(0xFFFFA500),
+                elevation = 0.dp
             )
         }
     ) { paddingValues ->
@@ -88,12 +113,14 @@ fun ProfileScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
+            // Profile Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Profile Image
                     Box(
                         modifier = Modifier
                             .size(80.dp)
@@ -101,26 +128,36 @@ fun ProfileScreen(navController: NavController) {
                             .background(Color.Gray),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "P",
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (profileImageUrl.isNotEmpty()) {
+                            Image(
+                                painter = rememberAsyncImagePainter(profileImageUrl),
+                                contentDescription = "Profile Image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = profileName.take(1), // First letter of name
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
+                    // Profile Name and Balance
                     Column {
                         Text(
-                            text = "Christian Yoga",
+                            text = profileName,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Rp 100,000",
+                            text = "Rp. ${"%,.2f".format(balance)}", // Display the user's balance
                             fontSize = 16.sp,
                             color = Color.Black
                         )
@@ -128,56 +165,72 @@ fun ProfileScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    IconButton(onClick = {
-                        navController.navigate("yourProfile")
-                    }) {
+                    IconButton(onClick = { navController.navigate("yourProfile") }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit Profile")
                     }
                 }
             }
 
-            // Menu Section
+            // Profile Menu Items
             Column(modifier = Modifier.fillMaxWidth()) {
-                ProfileMenuItem("Your Profile") {
-                    navController.navigate("yourProfile")
-                }
-                ProfileMenuItem("Payment Method") {
-                    navController.navigate("payment")
-                }
-                ProfileMenuItem("Order") {
-                    navController.navigate("checkout_page")
-                }
-                ProfileMenuItem("Notification") {
-                    navController.navigate("notification")
-                }
-                ProfileMenuItem("Setting") {
-                    navController.navigate("setting")
-                }
-                ProfileMenuItem("Help Center") {
-                    navController.navigate("helpCenter")
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    FirebaseAuth.getInstance().signOut()
-                    val intent = Intent(context, LoginActivity::class.java)
-                    context.startActivity(intent)
-                    (context as? MainActivity)?.finish()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
-            ) {
-                Text("Log out", color = Color.White)
+                ProfileMenuItem(
+                    text = "Your Profile",
+                    icon = Icons.Filled.Person,
+                    onClick = { navController.navigate("yourProfile") }
+                )
+                ProfileMenuItem(
+                    text = "Address",
+                    icon = Icons.Filled.LocationOn,
+                    onClick = { navController.navigate("address") }
+                )
+                ProfileMenuItem(
+                    text = "Payment Method",
+                    icon = Icons.Filled.Payment,
+                    onClick = { navController.navigate("payment_method") }
+                )
+                ProfileMenuItem(
+                    text = "Order",
+                    icon = Icons.Filled.ShoppingCart,
+                    onClick = { navController.navigate("checkout_page") }
+                )
+                ProfileMenuItem(
+                    text = "Notification",
+                    icon = Icons.Filled.Notifications,
+                    onClick = { navController.navigate("notifications") }
+                )
+                ProfileMenuItem(
+                    text = "Setting",
+                    icon = Icons.Filled.Settings,
+                    onClick = { navController.navigate("setting") }
+                )
+                ProfileMenuItem(
+                    text = "Help Center",
+                    icon = Icons.Filled.Help,
+                    onClick = { navController.navigate("helpCenter") }
+                )
+                ProfileMenuItem(
+                    text = "Log Out",
+                    icon = Icons.Filled.ExitToApp,
+                    textColor = Color.Red,
+                    onClick = {
+                        FirebaseAuth.getInstance().signOut()
+                        val intent = Intent(context, LoginActivity::class.java)
+                        context.startActivity(intent)
+                        (context as? MainActivity)?.finish()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ProfileMenuItem(text: String, onClick: () -> Unit) {
+fun ProfileMenuItem(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    textColor: Color = Color(0xFFFFA500)
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -188,14 +241,20 @@ fun ProfileMenuItem(text: String, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = textColor,
+                modifier = Modifier.padding(end = 8.dp)
+            )
             Text(
                 text = text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color(0xFFFFA500),
+                color = textColor,
                 modifier = Modifier.weight(1f)
             )
         }
-        Divider(modifier = Modifier.padding(top = 12.dp), color = Color(0xFFFFA500))
+        Divider(modifier = Modifier.padding(top = 12.dp), color = textColor)
     }
 }

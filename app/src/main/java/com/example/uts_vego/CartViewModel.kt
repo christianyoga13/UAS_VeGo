@@ -1,5 +1,7 @@
 package com.example.uts_vego
 
+import android.util.Log
+import androidx.annotation.DrawableRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -12,9 +14,11 @@ import kotlinx.coroutines.launch
 data class CartItem(
     val name: String = "",
     val price: Int = 0,
-    val image: String = "",
+    @DrawableRes val imageres: Int = 0,
     var quantity: Int = 1,
-    val userId: String = "" // pastikan ada field userId
+    val userId: String = "",
+    val restaurantId: String = "",    // Document ID dari restoran
+    val restaurantName: String = ""   // Nama display dari restoran
 )
 
 class CartViewModel : ViewModel() {
@@ -24,104 +28,125 @@ class CartViewModel : ViewModel() {
     private val _cartItemsState = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItemsState: StateFlow<List<CartItem>> get() = _cartItemsState
 
-    init {
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-        if (currentUserId != null) {
-            // Hanya listen ke cart milik user saat ini
-            cartCollection
-                .whereEqualTo("userId", currentUserId)
-                .addSnapshotListener { snapshot, e ->
-                    if (e == null && snapshot != null) {
-                        val items = snapshot.toObjects(CartItem::class.java)
-                        _cartItemsState.value = items
-                    } else {
-                        _cartItemsState.value = emptyList()
-                    }
+    /**
+     * Fetch cart items based on the current user and restaurantId.
+     * Ensures only items from the same restaurant are displayed in the cart.
+     */
+    fun fetchCartItemsByRestaurant(restaurantId: String) {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        cartCollection
+            .whereEqualTo("userId", currentUserId)
+            .whereEqualTo("restaurantId", restaurantId) // Query menggunakan Document ID
+            .addSnapshotListener { snapshot, e ->
+                if (e == null && snapshot != null) {
+                    val items = snapshot.toObjects(CartItem::class.java)
+                    _cartItemsState.value = items
+                    Log.d("FirestoreData", "Items: $items")
+                } else {
+                    _cartItemsState.value = emptyList()
+                    Log.e("FirestoreError", "Error fetching data: ${e?.message}")
                 }
-        } else {
-            _cartItemsState.value = emptyList()
-        }
+            }
     }
 
-    fun addToCart(item: MenuItem) {
+    /**
+     * Add an item to the cart. If the item already exists, increase the quantity.
+     */
+    fun addToCart(item: MenuItem, restaurantId: String, restaurantName: String) {
         viewModelScope.launch {
             val auth = FirebaseAuth.getInstance()
             val currentUserId = auth.currentUser?.uid ?: return@launch
 
-            // Cek item yang sudah ada
-            // Karena kita sudah memfilter dengan whereEqualTo("userId", currentUserId),
-            // _cartItemsState cuma milik user ini saja.
-            val existingItem = _cartItemsState.value.find { it.name == item.name }
+            val existingItem = _cartItemsState.value.find {
+                it.name == item.name && it.restaurantId == restaurantId
+            }
 
             if (existingItem != null) {
+                // Item exists, increase quantity
                 val newQty = existingItem.quantity + 1
                 cartCollection
                     .whereEqualTo("name", existingItem.name)
                     .whereEqualTo("userId", currentUserId)
+                    .whereEqualTo("restaurantId", restaurantId)
                     .get()
                     .addOnSuccessListener { query ->
                         updateItemQuantity(query, newQty)
                     }
             } else {
+                // Add new item to the cart
                 val newCartItem = CartItem(
                     name = item.name,
                     price = item.price,
-                    image = item.image,
+                    imageres = item.imageres,
                     quantity = 1,
-                    userId = currentUserId
+                    userId = currentUserId,
+                    restaurantId = restaurantId, // Gunakan Document ID
+                    restaurantName = restaurantName // Gunakan nama restoran untuk UI
                 )
                 cartCollection.add(newCartItem)
             }
         }
     }
 
+    /**
+     * Update the quantity of an item in the cart.
+     */
     private fun updateItemQuantity(query: QuerySnapshot, newQty: Int) {
         for (doc in query.documents) {
             doc.reference.update("quantity", newQty)
         }
     }
 
-    fun removeFromCart(item: CartItem) {
-        viewModelScope.launch {
-            cartCollection
-                .whereEqualTo("name", item.name)
-                .whereEqualTo("userId", item.userId)
-                .get()
-                .addOnSuccessListener { documents ->
-                    for (doc in documents.documents) {
-                        doc.reference.delete()
-                    }
-                }
-        }
-    }
-
+    /**
+     * Update the quantity of an item directly from the cart.
+     */
     fun updateItemQuantityInCart(item: CartItem, newQty: Int) {
-        if (newQty <= 0) {
-            removeFromCart(item)
-        } else {
-            viewModelScope.launch {
-                cartCollection
-                    .whereEqualTo("name", item.name)
-                    .whereEqualTo("userId", item.userId)
-                    .get()
-                    .addOnSuccessListener { query ->
-                        updateItemQuantity(query, newQty)
-                    }
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        cartCollection
+            .whereEqualTo("name", item.name)
+            .whereEqualTo("userId", currentUserId)
+            .whereEqualTo("restaurantId", item.restaurantId) // Query dengan Document ID
+            .get()
+            .addOnSuccessListener { query ->
+                for (doc in query.documents) {
+                    doc.reference.update("quantity", newQty)
+                }
             }
-        }
     }
 
+    /**
+     * Remove an item from the cart.
+     */
+    fun removeFromCart(item: CartItem) {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        cartCollection
+            .whereEqualTo("name", item.name)
+            .whereEqualTo("userId", currentUserId)
+            .whereEqualTo("restaurantId", item.restaurantId) // Query dengan Document ID
+            .get()
+            .addOnSuccessListener { query ->
+                for (doc in query.documents) {
+                    doc.reference.delete()
+                }
+            }
+    }
+
+    /**
+     * Clear all items in the cart for the current user.
+     */
     fun clearCart() {
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        viewModelScope.launch {
-            cartCollection
-                .whereEqualTo("userId", currentUserId)
-                .get()
-                .addOnSuccessListener { query ->
-                    for (doc in query.documents) {
-                        doc.reference.delete()
-                    }
+
+        cartCollection
+            .whereEqualTo("userId", currentUserId)
+            .get()
+            .addOnSuccessListener { query ->
+                for (doc in query.documents) {
+                    doc.reference.delete()
                 }
-        }
+            }
     }
 }

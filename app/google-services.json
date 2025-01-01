@@ -1,13 +1,14 @@
 {
   "project_info": {
-    "project_number": "170795864455",
-    "project_id": "uts-kelompok-2b179",
-    "storage_bucket": "uts-kelompok-2b179.appspot.com"
+    "project_number": "491460225078",
+    "firebase_url": "https://if540uts-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "if540uts",
+    "storage_bucket": "if540uts.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:170795864455:android:b15591362cacc096b64322",
+        "mobilesdk_app_id": "1:491460225078:android:07efe1ef10b5ef94f41097",
         "android_client_info": {
           "package_name": "com.example.uts_vego"
         }
@@ -15,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD80IxjzSivF7S-attd5TqP2RjOgPaOspc"
+          "current_key": "AIzaSyDTGn8DUUbTmT-ZnbT93pbq_yiONtxnklU"
         }
       ],
       "services": {

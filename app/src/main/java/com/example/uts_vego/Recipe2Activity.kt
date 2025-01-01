@@ -14,11 +14,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.example.uts_vego.ui.theme.UTSMobappTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -32,15 +30,13 @@ class Recipe2Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            UTSMobappTheme {
-                Recipe2Screen(
-                    modifier = Modifier.fillMaxSize(),
-                    firestore = firestore,
-                    storage = storage,
-                    auth = auth,
-                    context = this@Recipe2Activity
-                )
-            }
+            Recipe2Screen(
+                modifier = Modifier.fillMaxSize(),
+                firestore = firestore,
+                storage = storage,
+                auth = auth,
+                context = this@Recipe2Activity
+            )
         }
     }
 }
@@ -57,144 +53,174 @@ fun Recipe2Screen(
     var recipeContent by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Register for the result of the image picker
     val getImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { imageUri = it }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = "Apa cerita anda hari ini?",
-            color = Color.White,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        OutlinedTextField(
-            value = recipeContent,
-            onValueChange = { recipeContent = it },
-            label = { Text("Content", color = Color.Gray) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(bottom = 16.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-        )
-
-        imageUri?.let {
-            Image(
-                painter = rememberAsyncImagePainter(it),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(bottom = 16.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Share Your Vegan Recipe") }
             )
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .padding(paddingValues),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Button(
-                onClick = { getImageLauncher.launch("image/*") },
+            OutlinedTextField(
+                value = recipeContent,
+                onValueChange = { recipeContent = it },
+                label = { Text("Recipe Content") },
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                Text("Add Image")
+            )
+
+            imageUri?.let {
+                Image(
+                    painter = rememberAsyncImagePainter(it),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(bottom = 16.dp)
+                )
             }
 
-            Button(
-                onClick = {
-                    if (recipeContent.isNotBlank()) {
-                        if (imageUri != null) {
-                            uploadRecipe2WithImage(recipeContent, imageUri!!, firestore, storage, context) {
-                                recipeContent = ""
-                                imageUri = null
-                                showToast(context, "Recipe uploaded successfully")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(onClick = { getImageLauncher.launch("image/*") }) {
+                    Text("Add Image")
+                }
+                Button(
+                    onClick = {
+                        if (recipeContent.isNotBlank()) {
+                            if (imageUri != null) {
+                                uploadRecipe2WithImage(
+                                    recipeContent,
+                                    imageUri!!,
+                                    firestore,
+                                    storage,
+                                    auth,
+                                    context
+                                ) {
+                                    recipeContent = ""
+                                    imageUri = null
+                                    showToast(context, "Recipe uploaded successfully")
+                                }
+                            } else {
+                                uploadRecipe2WithoutImage(
+                                    recipeContent,
+                                    firestore,
+                                    auth,
+                                    context
+                                ) {
+                                    recipeContent = ""
+                                    imageUri = null
+                                    showToast(context, "Recipe uploaded successfully")
+                                }
                             }
                         } else {
-                            uploadRecipe2WithoutImage(recipeContent, firestore, context) {
-                                recipeContent = ""
-                                imageUri = null
-                                showToast(context, "Recipe uploaded successfully")
-                            }
+                            showToast(context, "Content cannot be empty")
                         }
-                    } else {
-                        showToast(context, "Content cannot be empty")
                     }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
-            ) {
-                Text("Post")
+                ) {
+                    Text("Post")
+                }
             }
         }
     }
 }
 
-// Function to upload recipe with image
 private fun uploadRecipe2WithImage(
     recipeContent: String,
     imageUri: Uri,
     firestore: FirebaseFirestore,
     storage: FirebaseStorage,
+    auth: FirebaseAuth,
     context: Context,
     onSuccess: () -> Unit
 ) {
+    val currentUser = auth.currentUser
+    if (currentUser == null) {
+        showToast(context, "User not authenticated")
+        return
+    }
+
+    val userId = currentUser.uid
     val imageRef: StorageReference = storage.reference.child("images/${System.currentTimeMillis()}.jpg")
     imageRef.putFile(imageUri).addOnSuccessListener {
         imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
-            val recipe = hashMapOf(
-                "content" to recipeContent,
-                "imageUrl" to downloadUri.toString(),
-                "timestamp" to System.currentTimeMillis(),
-            )
-            firestore.collection("recipes")
-                .add(recipe)
-                .addOnSuccessListener {
-                    showToast(context, "Recipe with image uploaded successfully")
-                    onSuccess()
+            firestore.collection("users").document(userId).get()
+                .addOnSuccessListener { userDoc ->
+                    val username = userDoc.getString("name") ?: "Unknown"
+                    val recipe = hashMapOf(
+                        "content" to recipeContent,
+                        "imageUrl" to downloadUri.toString(),
+                        "userId" to userId,
+                        "username" to username,
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    firestore.collection("recipes")
+                        .add(recipe)
+                        .addOnSuccessListener { onSuccess() }
+                        .addOnFailureListener { e ->
+                            showToast(context, "Failed to upload recipe: ${e.message}")
+                        }
                 }
                 .addOnFailureListener { e ->
-                    showToast(context, "Failed to upload recipe: ${e.message}")
+                    showToast(context, "Failed to fetch user: ${e.message}")
                 }
+
         }
     }.addOnFailureListener { e ->
         showToast(context, "Failed to upload image: ${e.message}")
     }
 }
 
-// Function to upload recipe without image
 private fun uploadRecipe2WithoutImage(
     recipeContent: String,
     firestore: FirebaseFirestore,
+    auth: FirebaseAuth,
     context: Context,
     onSuccess: () -> Unit
 ) {
-    val recipe = hashMapOf(
-        "content" to recipeContent,
-        "imageUrl" to "", // No image URL
-        "timestamp" to System.currentTimeMillis(),
-    )
-    firestore.collection("recipes")
-        .add(recipe)
-        .addOnSuccessListener {
-            showToast(context, "Recipe without image uploaded successfully")
-            onSuccess()
+    val currentUser = auth.currentUser
+    if (currentUser == null) {
+        showToast(context, "User not authenticated")
+        return
+    }
+
+    val userId = currentUser.uid
+    firestore.collection("users").document(userId).get()
+        .addOnSuccessListener { userDoc ->
+            val username = userDoc.getString("name") ?: "Unknown"
+            val recipe = hashMapOf(
+                "content" to recipeContent,
+                "imageUrl" to "",
+                "userId" to userId,
+                "username" to username,
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore.collection("recipes")
+                .add(recipe)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e ->
+                    showToast(context, "Failed to upload recipe: ${e.message}")
+                }
         }
         .addOnFailureListener { e ->
-            showToast(context, "Failed to upload recipe: ${e.message}")
+            showToast(context, "Failed to fetch user: ${e.message}")
         }
+
 }
 
-// Function to show a toast message
 fun showToast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }

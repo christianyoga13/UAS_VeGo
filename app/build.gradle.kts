@@ -44,57 +44,55 @@ android {
         kotlinCompilerExtensionVersion = "1.5.2"
     }
 }
+
 dependencies {
-    // Core AndroidX libraries
-    implementation("androidx.core:core-ktx:1.10.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-    implementation("androidx.activity:activity-compose:1.7.2")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.google.android.gms:play-services-maps:18.1.0")
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.0")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.0")
 
-    // Firebase dependencies (with Firebase BOM for version management)
-    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
-    implementation("com.google.firebase:firebase-auth:21.1.0") // Firebase Authentication
-    implementation("com.google.firebase:firebase-firestore:24.5.0") // Firestore
-    implementation("com.google.firebase:firebase-storage:20.3.0") // Firebase Storage
-    implementation("com.google.firebase:firebase-analytics:21.1.0") // Firebase Analytics (optional)
-    implementation("com.google.firebase:firebase-database-ktx:20.0.5")
-
-    // Coil for image loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
-
-    // Compose dependencies (ensure version consistency)
-    implementation("androidx.compose.ui:ui:1.4.0")
-    implementation("androidx.compose.material3:material3:1.0.1")  // Stable Material3 version
-    implementation("androidx.compose.ui:ui-tooling-preview:1.4.0")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.play.services.maps)
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation("androidx.compose.ui:ui:1.5.2")
+    implementation("androidx.compose.material:material:1.5.2")
+    implementation("androidx.compose.material3:material3:1.0.1")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.5.2")
     implementation("androidx.navigation:navigation-compose:2.6.0")
-    implementation("androidx.compose.material:material-icons-extended:1.4.0")
-    implementation("androidx.compose.foundation:foundation-layout:1.4.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.2")
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.compose.foundation:foundation-layout:1.5.2")
     implementation("androidx.compose.foundation:foundation:1.4.0")
-
-    // Lifecycle and ViewModel
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
-
-    // Testing dependencies
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.junit:junit:1.1.5")
-    androidTestImplementation("androidx.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:1.4.0"))
-    androidTestImplementation("androidx.compose.ui:test-junit4:1.4.0")
-
-    // Debugging dependencies
-    debugImplementation("androidx.compose.ui:ui-tooling:1.4.0")
-    debugImplementation("androidx.compose.ui:test-manifest:1.4.0")
-
-    // Miscellaneous dependencies
+    implementation(libs.firebase.database.ktx)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.firebase.storage.ktx)
+    testImplementation(libs.junit)
+    debugImplementation("androidx.compose.ui:ui-tooling:1.5.2")
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    implementation("androidx.activity:activity-ktx:1.6.1")
+    implementation("androidx.fragment:fragment-ktx:1.5.5")
+    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth:21.1.0")
     implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation("com.google.accompanist:accompanist-pager:0.30.1")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.30.1")
+    implementation("com.google.accompanist:accompanist-pager:0.26.2-beta")
+    implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0")
-    implementation("androidx.fragment:fragment-ktx:1.5.5")
-    implementation("androidx.activity:activity-ktx:1.6.1")
+    implementation ("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.gms:play-services-location:21.1.0")
+    implementation("com.google.maps.android:maps-compose:2.11.2")
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+    implementation("com.google.android.gms:play-services-maps:18.1.0")
+
+
+    val lifecycle_version = "2.2.0"
+
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version")
 }

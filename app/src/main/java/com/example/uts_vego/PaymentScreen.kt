@@ -1,6 +1,7 @@
 package com.example.uts_vego
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,10 +38,17 @@ fun PaymentScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Payment", color = Color.White) },
-                backgroundColor = Color(0xFFFFA500),
-            )
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFFFA500)) // Sama dengan warna top bar
+                    .statusBarsPadding() // Pastikan padding ditambahkan di sini
+            ) {
+                TopAppBar(
+                    title = { Text("Payment", color = Color.White) },
+                    backgroundColor = Color(0xFFFFA500), // Warna yang sama agar menyatu
+                    elevation = 0.dp
+                )
+            }
         }
     ) { paddingValues ->
             Column(
@@ -114,31 +122,74 @@ fun BalanceCard(balance: Double, onTopUp: () -> Unit) {
     }
 }
 
+fun isToday(timestamp: Long): Boolean {
+    val today = java.util.Calendar.getInstance()
+    val date = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    return today.get(java.util.Calendar.YEAR) == date.get(java.util.Calendar.YEAR) &&
+            today.get(java.util.Calendar.DAY_OF_YEAR) == date.get(java.util.Calendar.DAY_OF_YEAR)
+}
+
+
 @Composable
 fun TransactionItem(transaction: Transaction) {
+    val formattedDate = if (isToday(transaction.dateCreated)) {
+        "Today"
+    } else {
+        java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(transaction.dateCreated))
+    }
+
+    val isTopUp = transaction.title == "Top Up" // Tentukan apakah ini top-up atau order
+    val amountColor = if (isTopUp) Color(0xFF4CAF50) else Color.Red // Hijau untuk top-up, merah untuk order
+    val formattedAmount = if (isTopUp) {
+        "+Rp. ${"%,.2f".format(transaction.amount)}"
+    } else {
+        "-Rp. ${"%,.2f".format(transaction.amount)}"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.ShoppingCart, contentDescription = "Transaction", tint = Color(0xFFFFA500))
+        Icon(
+            Icons.Default.ShoppingCart,
+            contentDescription = "Transaction",
+            tint = Color(0xFFFFA500)
+        )
         Spacer(modifier = Modifier.width(8.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = transaction.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(text = transaction.location, fontSize = 14.sp, color = Color.Gray)
-            Text(text = transaction.date, fontSize = 12.sp, color = Color.Gray)
+            Text(
+                text = transaction.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Text(
+                text = transaction.location,
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+            Text(
+                text = formattedDate,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
         }
 
         Text(
-            text = if (transaction.isRefunded) "Rp. ${"%,.2f".format(transaction.amount)} (Refund)" else "-Rp. ${"%,.2f".format(transaction.amount)}",
+            text = formattedAmount,
             fontSize = 14.sp,
-            color = if (transaction.isRefunded) Color.Gray else Color.Red
+            color = amountColor, // Warna ditentukan berdasarkan tipe transaksi
+            fontWeight = FontWeight.Bold
         )
     }
     Divider(color = Color.Gray, thickness = 0.5.dp)
 }
+
+
 
 @Composable
 fun ActionButton(label: String, icon: ImageVector, onClick: () -> Unit) {

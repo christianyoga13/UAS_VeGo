@@ -17,6 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,10 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.*
+import coil.compose.AsyncImage
 import com.example.uts_vego.font.MyCustomFont
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 
 class HomeScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,45 +54,84 @@ class HomeScreen : ComponentActivity() {
 
 @Composable
 fun HomeScreenContent(navController: NavController) {
+    val firestore = FirebaseFirestore.getInstance()
+    var bestRecipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        fetchBestRecipes(
+            firestore,
+            onSuccess = { recipes ->
+                bestRecipes = recipes
+            },
+            onFailure = { e ->
+                println("Failed to fetch recipes: ${e.message}")
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopBarWithSearchBarHome(navController)
-        },
+            TopBarWithSearchBarHome(navController, showSearchBar = true)
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
         ) {
             CarouselSection()
             ButtonGridSection(navController)
             Spacer(modifier = Modifier.height(16.dp))
             VeganRecommendationSection()
             Spacer(modifier = Modifier.height(16.dp))
-            BestPicksSection()
+            BestPicksSection(navController)
+            Spacer(modifier = Modifier.height(16.dp))
+            BestRecipePickSection(
+                recipes = bestRecipes,
+                onCardClick = { recipe ->
+                    navController.navigate("recipeDetail/${recipe.timestamp}") // Navigasi ke layar detail resep
+                }
+            )
         }
     }
 }
 
+
 @Composable
-fun TopBarWithSearchBarHome(navController: NavController) {
-    Column(modifier = Modifier.background(Color(0xFFFFA500))) {
+fun TopBarWithSearchBarHome(
+    navController: NavController,
+    showSearchBar: Boolean = true
+) {
+    Column(
+        modifier = Modifier
+            .background(Color(0xFFFFA500))
+            .statusBarsPadding()
+    ) {
         TopAppBar(
             title = {
-                Text(text = "Vego", color = Color.White, fontFamily = MyCustomFont, fontSize = 32.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    text = "Vego",
+                    color = Color.White,
+                    fontFamily = MyCustomFont,
+                    fontSize = 32.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             },
             backgroundColor = Color(0xFFFFA500),
             elevation = 0.dp
         )
 
-        SearchBarHome(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth()
-        )
+        if (showSearchBar) {
+            SearchBarHome(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+            )
+        }
     }
 }
+
 
 @Composable
 fun SearchBarHome(modifier: Modifier = Modifier) {
@@ -177,7 +223,7 @@ fun ButtonGridSection(navController: NavController) {
                 iconRes = R.drawable.restaurant_logo,
                 label = "Restaurant Near You",
                 modifier = Modifier.weight(1f),
-                onClick = { /*navController.navigate("restaurant")*/ }
+                onClick = { navController.navigate("nearby") }
             )
         }
         Spacer(modifier = Modifier.height(16.dp)) // Jarak antar baris
@@ -191,7 +237,7 @@ fun ButtonGridSection(navController: NavController) {
                 iconRes = R.drawable.recipe,
                 label = "Recipe Book",
                 modifier = Modifier.weight(1f),
-                onClick = { /*navController.navigate("recipe")*/ }
+                onClick = { navController.navigate("recipe") }
             )
             Spacer(modifier = Modifier.width(16.dp))
             FeatureButton(
@@ -232,11 +278,10 @@ fun FeatureButton(
                 modifier = Modifier
                     .size(48.dp) // Ukuran logo lebih besar
             )
-            Spacer(modifier = Modifier.width(16.dp)) // Jarak antara logo dan teks
-            // Teks di sisi kanan
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = label,
-                fontSize = 16.sp, // Ukuran teks lebih besar
+                fontSize = 16.sp,
                 color = Color.Black,
                 textAlign = TextAlign.Start, // Teks rata kiri
                 modifier = Modifier.weight(1f) // Memastikan teks tidak keluar area
@@ -368,138 +413,244 @@ fun VeganRecipeCard(recipe: VeganRecipe, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun BestPicksSection() {
+fun BestPicksSection(navController: NavController) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Bagian "Best Restaurant Pick"
         BestPickCategory(
             title = "Best Restaurant Pick",
-            backgroundColor = Color(0xFFFFA500), // Warna latar header oranye
-            items = listOf(
-                PickItem(
-                    imageRes = R.drawable.vegan_food, // Ganti dengan resource gambar restoran
-                    title = "Selero Kito Vegetarian",
-                    rating = 4.9
-                ),
-                PickItem(
-                    imageRes = R.drawable.vegan_smoothie,
-                    title = "Vegan & Vegetarians",
-                    rating = 4.8
-                ),
-                PickItem(
-                    imageRes = R.drawable.resto_image,
-                    title = "Suka Cita Vegan",
-                    rating = 4.7
-                )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp)) // Jarak antar kategori
-
-        // Bagian "Best Recipe Pick"
-        BestPickCategory(
-            title = "Best Recipe Pick",
-            backgroundColor = Color.White, // Latar header putih
-            items = listOf(
-                PickItem(
-                    imageRes = R.drawable.vegan_food, // Ganti dengan resource gambar resep
-                    title = "Nasi Padang Vegetarian",
-                    rating = 5.0,
-                    price = "23.000"
-                ),
-                PickItem(
-                    imageRes = R.drawable.vegan_food,
-                    title = "Pecel Sayur",
-                    rating = 4.8,
-                    price = "25.000"
-                )
-            )
+            backgroundColor = Color(0xFFFFA500),
+            items = getBestPickRestaurants(),
+            onCardClick = { restoItem ->
+                navController.navigate("restoDetail/${restoItem.name}")
+            }
         )
     }
 }
+
+
 
 @Composable
 fun BestPickCategory(
     title: String,
     backgroundColor: Color,
-    items: List<PickItem>
+    items: List<RestoItem>,
+    onCardClick: (RestoItem) -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor) // Background mencakup seluruh area
-            .padding(vertical = 8.dp) // Padding di luar area konten
+            .background(backgroundColor)
+            .padding(vertical = 8.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.h6.copy(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-                )
-                Text(
-                    text = "See More",
-                    style = MaterialTheme.typography.body2.copy(
-                        fontSize = 14.sp,
-                        color = Color.Green,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier.clickable { /* Tambahkan aksi untuk See More */ }
-                )
+        Text(
+            text = title,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items) { item ->
+                PickCard(item = item, onClick = { onCardClick(item) })
             }
+        }
+    }
+}
 
-            // Horizontal List
-            LazyRow(
+
+@Composable
+fun PickCard(item: RestoItem, onClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 4.dp,
+        modifier = Modifier
+            .width(160.dp)
+            .height(220.dp)
+            .clickable { onClick() }
+            .padding(top = 16.dp)
+    ) {
+        Column {
+            Image(
+                painter = painterResource(id = item.imageRes),
+                contentDescription = item.name,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp), // Jarak antara header dan LazyRow
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(items) { item ->
-                    PickCard(item = item)
+                    .height(120.dp)
+            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    text = item.name,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.star),
+                        contentDescription = "Rating",
+                        tint = Color.Yellow,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(text = item.rating.toString())
                 }
             }
         }
     }
 }
 
+
+data class PickItem(
+    val imageRes: Int,
+    val title: String,
+    val rating: Double,
+    val price: String? = null
+)
+
+data class VeganRecipe(
+    val imageResId: Int,
+    val title: String,
+    val author: String
+)
+
+fun getBestPickRestaurants(): List<RestoItem> {
+    return listOf(
+        RestoItem(
+            imageRes = R.drawable.resto_image,
+            restaurantId = "1",
+            name = "Resto Salad Sayur",
+            rating = 4.9,
+            time = "20 MINS",
+            distance = "1.5 Km",
+            tags = listOf("Top Pick", "Healthy"),
+            menuItems = listOf(
+                MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        ),
+        RestoItem(
+            imageRes = R.drawable.vegan_food,
+            restaurantId = "2",
+            name = "Vegan Delight",
+            rating = 4.8,
+            time = "15 MINS",
+            distance = "1.2 Km",
+            tags = listOf("Recommended", "Popular"),
+            menuItems = listOf(
+                MenuItem("Pecel Vegan", 18000, R.drawable.vegan_food),
+                MenuItem("Sate Vegan", 22000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        ),
+        RestoItem(
+            imageRes = R.drawable.resto_image,
+            restaurantId = "3",
+            name = "Fusion Vegan Resto",
+            rating = 4.7,
+            time = "25 MINS",
+            distance = "2.0 Km",
+            tags = listOf("Fusion", "Vegan"),
+            menuItems = listOf(
+                MenuItem("Ramen Vegan", 30000, R.drawable.vegan_food),
+                MenuItem("Sushi Vegan", 28000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        )
+    )
+}
+
+fun fetchBestRecipes(
+    firestore: FirebaseFirestore,
+    onSuccess: (List<Recipe>) -> Unit,
+    onFailure: (Exception) -> Unit
+) {
+    firestore.collection("recipes")
+        .orderBy("timestamp", Query.Direction.DESCENDING)
+        .limit(5) // Ambil maksimal 5 resep terbaru
+        .get()
+        .addOnSuccessListener { snapshot ->
+            val recipes = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Recipe::class.java)
+            }
+            onSuccess(recipes)
+        }
+        .addOnFailureListener { e ->
+            onFailure(e)
+        }
+}
+
 @Composable
-fun PickCard(item: PickItem) {
+fun BestRecipePickSection(
+    recipes: List<Recipe>,
+    onCardClick: (Recipe) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Best Recipe Pick",
+                style = MaterialTheme.typography.h6.copy(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            )
+            Text(
+                text = "See More",
+                style = MaterialTheme.typography.body2.copy(
+                    fontSize = 14.sp,
+                    color = Color.Green,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.clickable { /* Tambahkan aksi untuk See More */ }
+            )
+        }
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(recipes) { recipe ->
+                RecipeCard(recipe = recipe, onClick = { onCardClick(recipe) })
+            }
+        }
+    }
+}
+
+@Composable
+fun RecipeCard(recipe: Recipe, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = 4.dp,
         modifier = Modifier
-            .width(160.dp) // Tetapkan lebar yang sama untuk semua card
-            .height(220.dp) // Tetapkan tinggi yang sama untuk semua card
+            .width(160.dp)
+            .height(220.dp)
+            .clickable { onClick() }
+            .padding(top = 16.dp)
     ) {
         Column {
-            // Gambar bagian atas
-            Image(
-                painter = painterResource(id = item.imageRes),
-                contentDescription = item.title,
+            // Gambar Resep
+            AsyncImage(
+                model = recipe.imageUrl,
+                contentDescription = recipe.content,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp) // Pastikan tinggi gambar seragam
+                    .height(120.dp)
             )
-            // Informasi bagian bawah
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
+            // Informasi Resep
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
-                    text = item.title,
+                    text = recipe.content,
                     style = MaterialTheme.typography.subtitle1.copy(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -509,53 +660,18 @@ fun PickCard(item: PickItem) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.star), // Ikon bintang
-                        contentDescription = "Rating",
-                        tint = Color.Yellow,
-                        modifier = Modifier.size(16.dp)
+                Text(
+                    text = "By: ${recipe.username}",
+                    style = MaterialTheme.typography.body2.copy(
+                        fontSize = 12.sp,
+                        color = Color.Gray
                     )
-                    Text(
-                        text = item.rating.toString(),
-                        style = MaterialTheme.typography.body2.copy(
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        ),
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-                item.price?.let { price ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = price,
-                        style = MaterialTheme.typography.body2.copy(
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    )
-                }
+                )
             }
         }
     }
 }
 
-// Data Model untuk item pick
-data class PickItem(
-    val imageRes: Int,
-    val title: String,
-    val rating: Double,
-    val price: String? = null // Harga opsional, hanya untuk "Best Recipe Pick"
-)
-
-// Model Data untuk VeganRecipe
-data class VeganRecipe(
-    val imageResId: Int,
-    val title: String,
-    val author: String
-)
 
 @Preview
 @Composable
