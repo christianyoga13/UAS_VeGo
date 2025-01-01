@@ -1,24 +1,54 @@
 package com.example.uts_vego
 
+import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 
 @Composable
-fun CheckoutPage(cartViewModel: CartViewModel) {
+fun CheckoutPage(
+    navController: NavController,
+    cartViewModel: CartViewModel,
+    restaurantId: String? = null
+) {
     val cartItems by cartViewModel.cartItemsState.collectAsState()
+
+    val displayedItems = if (restaurantId != null) {
+        cartItems.filter { it.restaurantId == restaurantId }
+    } else {
+        cartItems
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Checkout") },
-                backgroundColor = MaterialTheme.colors.primary
-            )
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFFFA500))
+                    .statusBarsPadding()
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(if (restaurantId != null) "Checkout - $restaurantId" else "Checkout", color = Color(0xFFFFA500))
+                    },
+                    backgroundColor = Color.White,
+                    navigationIcon = {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFFFFA500))
+                        }
+                    }
+                )
+            }
         }
     ) { paddingValues ->
         Column(
@@ -27,8 +57,11 @@ fun CheckoutPage(cartViewModel: CartViewModel) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            if (cartItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (displayedItems.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text("Cart is empty.")
                 }
             } else {
@@ -36,7 +69,7 @@ fun CheckoutPage(cartViewModel: CartViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(cartItems) { item ->
+                    items(displayedItems) { item ->
                         CheckoutItemRow(
                             item = item,
                             onIncreaseQty = {
@@ -52,17 +85,30 @@ fun CheckoutPage(cartViewModel: CartViewModel) {
                     }
                 }
 
-                val total = cartItems.sumOf { it.price * it.quantity }
-
                 Spacer(modifier = Modifier.height(16.dp))
+
+                val total = displayedItems.sumOf { it.price * it.quantity }
+
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Total: Rp $total", style = MaterialTheme.typography.h6)
-                    Button(onClick = {
-                        cartViewModel.clearCart()
-                    }) {
+                    Text(
+                        "Total: Rp $total",
+                        style = MaterialTheme.typography.h6
+                    )
+                    Button(
+                        onClick = {
+                            if (restaurantId != null) {
+                                navController.navigate("map/$restaurantId/$total")
+                                Log.d("Navigation", "Navigating to map/$restaurantId")
+                                Log.d("CheckoutPage", "Restaurant ID: $restaurantId")
+
+                            } else {
+                                navController.navigateUp()
+                            }
+                        }
+                    ) {
                         Text("Confirm Purchase")
                     }
                 }
@@ -88,8 +134,20 @@ fun CheckoutItemRow(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(item.name, style = MaterialTheme.typography.subtitle1, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                Text("Rp ${item.price} x ${item.quantity} = Rp ${item.price * item.quantity}", style = MaterialTheme.typography.body2)
+                Text(
+                    item.name,
+                    style = MaterialTheme.typography.subtitle1,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Rp ${item.price} x ${item.quantity} = Rp ${item.price * item.quantity}",
+                    style = MaterialTheme.typography.body2
+                )
+                Text(
+                    "Restoran: ${item.restaurantId}", // Tambahkan informasi restoran
+                    style = MaterialTheme.typography.caption,
+                    color = Color.Gray
+                )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -108,3 +166,4 @@ fun CheckoutItemRow(
         }
     }
 }
+

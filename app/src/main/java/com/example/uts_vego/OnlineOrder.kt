@@ -43,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
@@ -67,11 +68,30 @@ class OnlineOrder : ComponentActivity() {
 
 @Composable
 fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+
+    // Gabungkan semua data resto untuk pencarian
+    val allRestos = remember(viewModel.restoList) {
+        (viewModel.restoList + getRestoItems() + getFastServeItems()).distinctBy { it.restaurantId }
+    }
+
+    // Filter untuk hasil pencarian
+    val searchResults = remember(searchQuery, allRestos) {
+        if (searchQuery.isNotEmpty()) {
+            allRestos.filter {
+                it.name.contains(searchQuery, ignoreCase = true)
+            }
+        } else {
+            emptyList()
+        }
+    }
+
     val items = listOf(
-        CarouselItem(R.drawable.heavy_meal, "Heavy Meal"),
-        CarouselItem(R.drawable.snack, "Snack"),
-        CarouselItem(R.drawable.ic_cart, "Groceries"),
-        CarouselItem(R.drawable.drink, "Drink")
+        CarouselItem(R.drawable.vegan_food, "Heavy Meal"),
+        CarouselItem(R.drawable.vegan_smoothie, "Snack"),
+        CarouselItem(R.drawable.vegan_food, "Groceries"),
+        CarouselItem(R.drawable.vegan_smoothie, "Drink")
     )
 
     val context = LocalContext.current
@@ -82,7 +102,6 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
 
     val user = auth.currentUser
     if (user != null) {
-        // Ambil role pengguna dari Firestore
         LaunchedEffect(user.uid) {
             db.collection("users").document(user.uid)
                 .get()
@@ -90,7 +109,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                     if (document != null && document.exists()) {
                         val role = document.getString("role")
                         if (role == "admin") {
-                            isAdmin = true  // Jika role admin, set isAdmin = true
+                            isAdmin = true
                         }
                     }
                 }
@@ -100,85 +119,216 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
         }
     }
 
-
-    // Memuat data restoran saat screen dibuka
     LaunchedEffect(Unit) {
-        viewModel.fetchRestosFromFirestore()  // Memanggil untuk mengambil data restoran
+        viewModel.fetchRestosFromFirestore()
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Online Order") },
-                actions = {
-                    if (isAdmin) {
-                        TextButton(onClick = { navController.navigate("AdminScreen") }) {
-                            Text("Admin", color = MaterialTheme.colors.onPrimary)
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFFFA500))
+                    .statusBarsPadding()
+            ) {
+                TopAppBar(
+                    title = { Text("Online Order", color = Color.White) },
+                    actions = {
+                        if (isAdmin) {
+                            TextButton(onClick = { navController.navigate("AdminScreen") }) {
+                                Text("Admin", color = Color.White)
+                            }
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(0.dp))
-                    }
-
-                }
-            )
+                    },
+                    backgroundColor = Color(0xFFFFA500),
+                    elevation = 0.dp
+                )
+                SearchBar(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { newQuery ->
+                        searchQuery = newQuery
+                        isSearchActive = newQuery.isNotEmpty()
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                )
+            }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(text = "Kategori", modifier = Modifier.padding(16.dp), fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Carousel(items = items)
-            Spacer(modifier = Modifier.height(24.dp))
-            ButtonGroup()
-            Spacer(modifier = Modifier.height(24.dp))
-            OrderNowCarousel()
-            Spacer(modifier = Modifier.height(24.dp))
+        if (isSearchActive && searchResults.isNotEmpty()) {
+            // Tampilkan hasil pencarian
+            LazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+            ) {
+                item {
+                    Text(
+                        text = "Hasil Pencarian",
+                        style = MaterialTheme.typography.h6,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                items(searchResults) { resto ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clickable { navController.navigate("restoDetail/${resto.name}") },
+                        elevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .height(80.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (resto.imageUrl != null && resto.imageUrl.isNotEmpty()) {
+                                // Gunakan gambar dari URL Firebase
+                                Image(
+                                    painter = rememberAsyncImagePainter(resto.imageUrl),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                // Gunakan drawable jika data hardcoded
+                                Image(
+                                    painter = painterResource(
+                                        id = if (resto.imageRes != 0) resto.imageRes else R.drawable.profile_placeholder
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .weight(1f)
+                            ) {
+                                Text(
+                                    text = resto.name,
+                                    style = MaterialTheme.typography.subtitle1,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Star,
+                                        contentDescription = null,
+                                        tint = Color.Yellow,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = resto.rating.toString(),
+                                        style = MaterialTheme.typography.body2,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (isSearchActive && searchResults.isEmpty() && searchQuery.isNotEmpty()) {
+            // Tampilkan pesan tidak ada hasil
+            Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Tidak ada restoran yang ditemukan",
+                    style = MaterialTheme.typography.h6,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            // Tampilkan konten normal
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Kategori",
+                    modifier = Modifier.padding(16.dp),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Carousel(items = items)
+                Spacer(modifier = Modifier.height(24.dp))
+                ButtonGroup()
+                Spacer(modifier = Modifier.height(24.dp))
+                OrderNowCarousel()
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Restoran yang Ditambahkan
-            if (viewModel.restoList.isNotEmpty()) {
+                if (viewModel.restoList.isNotEmpty()) {
+                    ReusableRestoSection(
+                        title = "New Restaurants",
+                        items = viewModel.restoList,
+                        onSeeAllClick = { /* Handle See All */ },
+                        onCardClick = { restoItem ->
+                            navController.navigate("restoDetail/${restoItem.name}")
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 ReusableRestoSection(
-                    title = "Your Added Restaurants",
-                    items = viewModel.restoList.map { resto ->
-                        RestoItem(
-                            imageRes = R.drawable.resto_image, // Gambar default
-                            name = resto.name,
-                            rating = 4.5, // Default rating
-                            time = "20 MINS", // Default time
-                            distance = "1.5 Km", // Default distance
-                            tags = listOf("User Added"),
-                            menuItems = resto.menuItems
-                        )
-                    },
+                    title = "24 Hours",
+                    items = getRestoItems(),
+                    onSeeAllClick = { /* Handle See All */ },
+                    onCardClick = { restoItem ->
+                        navController.navigate("restoDetail/${restoItem.name}")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                ReusableRestoSection(
+                    title = "Fast Serve",
+                    items = getFastServeItems(),
                     onSeeAllClick = { /* Handle See All */ },
                     onCardClick = { restoItem ->
                         navController.navigate("restoDetail/${restoItem.name}")
                     }
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            ReusableRestoSection(
-                title = "24 Hours",
-                items = getRestoItems(),
-                onSeeAllClick = { /* Handle See All */ },
-                onCardClick = { restoItem ->
-                    navController.navigate("restoDetail/${restoItem.name}")
-                }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            ReusableRestoSection(
-                title = "Fast Serve",
-                items = getFastServeItems(),
-                onSeeAllClick = { /* Handle See All */ },
-                onCardClick = { restoItem ->
-                    navController.navigate("restoDetail/${restoItem.name}")
-                }
-            )
         }
     }
+}
+
+
+@Composable
+fun SearchBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onSearchQueryChange,
+        leadingIcon = {
+            Icon(Icons.Filled.Search, contentDescription = "Search Icon")
+        },
+        placeholder = { Text("Search restaurants...") },
+        modifier = modifier
+            .background(Color.White, shape = RoundedCornerShape(16.dp)),
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            backgroundColor = Color.White,
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent
+        )
+    )
 }
 
 
@@ -187,7 +337,7 @@ fun TopBarWithSearchBar(navController: NavController) {
     Column(modifier = Modifier.background(Color(0xFFFFA500))) {
         TopAppBar(
             title = {
-                Text(text = "Online Order", color = Color.White)
+                Text(text = "Online Order", color = Color.White, fontWeight = FontWeight.Bold)
             },
             navigationIcon = {
                 IconButton(onClick = { navController.navigate("home") }) {
@@ -198,7 +348,7 @@ fun TopBarWithSearchBar(navController: NavController) {
             elevation = 0.dp
         )
 
-        SearchBar(
+        SearchBar1(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .fillMaxWidth()
@@ -207,7 +357,7 @@ fun TopBarWithSearchBar(navController: NavController) {
 }
 
 @Composable
-fun SearchBar(modifier: Modifier = Modifier) {
+fun SearchBar1(modifier: Modifier = Modifier) {
     OutlinedTextField(
         value = "",
         onValueChange = {},
@@ -375,7 +525,6 @@ fun OrderNowCarousel() {
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
         ) {
-            // Header Order Now
             Text(
                 text = "Order Now",
                 style = MaterialTheme.typography.h6,
@@ -384,9 +533,9 @@ fun OrderNowCarousel() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalPager(
-                count = getOrderItems().size, // Jumlah item
+                count = getOrderItems().size,
                 state = pagerState,
-                contentPadding = PaddingValues(horizontal = 8.dp), // Padding untuk snap
+                contentPadding = PaddingValues(horizontal = 8.dp),
             ) { page ->
                 OrderCard(orderItem = getOrderItems()[page])
             }
@@ -405,7 +554,6 @@ fun OrderCard(orderItem: OrderItem) {
             .padding(horizontal = 32.dp)
     ) {
         Column {
-            // Gambar di atas
             Image(
                 painter = painterResource(id = orderItem.imageRes),
                 contentDescription = null,
@@ -413,7 +561,6 @@ fun OrderCard(orderItem: OrderItem) {
                     .fillMaxWidth()
                     .height(150.dp)
             )
-            // Teks di bawah
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = orderItem.title,
@@ -456,7 +603,6 @@ fun ReusableRestoSection(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -473,7 +619,6 @@ fun ReusableRestoSection(
         }
         Spacer(modifier = Modifier.height(8.dp))
 
-        // LazyRow untuk menampilkan daftar restoran
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -498,18 +643,43 @@ fun RestoCard(restoItem: RestoItem, onClick: () -> Unit) {
         Column(
             modifier = Modifier.padding(8.dp)
         ) {
-            // Gambar
-            Image(
-                painter = painterResource(id = restoItem.imageRes),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
+            if (!restoItem.imageUrl.isNullOrEmpty()) {
+                // Jika URL gambar tersedia
+                Image(
+                    painter = rememberAsyncImagePainter(restoItem.imageUrl),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (restoItem.imageRes != 0) {
+                // Jika resource ID valid
+                Image(
+                    painter = painterResource(id = restoItem.imageRes),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Jika tidak ada gambar, gunakan placeholder
+                Image(
+                    painter = painterResource(id = R.drawable.profile_placeholder),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nama restoran
             Text(
                 text = restoItem.name,
                 style = MaterialTheme.typography.subtitle1,
@@ -519,7 +689,6 @@ fun RestoCard(restoItem: RestoItem, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Rating dan waktu/jarak
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -543,7 +712,6 @@ fun RestoCard(restoItem: RestoItem, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tags
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -569,27 +737,31 @@ fun getFastServeItems(): List<RestoItem> {
     return listOf(
         RestoItem(
             imageRes = R.drawable.vegan_food,
+            restaurantId = "1",
             name = "Vegetarian Mix",
             rating = 4.8,
             time = "15 MINS",
             distance = "0.8 Km",
             tags = listOf("Healthy", "Cheap"),
             menuItems = listOf(
-                MenuItem("Fruit + Vegetable Salad", 20000, "vegan_food"),
-                MenuItem("Vegan Rendang", 25000, "vegan_food")
-            )
+                MenuItem("Fruit + Vegetable Salad", 20000, R.drawable.vegan_food),
+                MenuItem("Vegan Rendang", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
+            restaurantId = "2",
             name = "Asian Delight",
             rating = 4.7,
             time = "10 MINS",
             distance = "1.0 Km",
             tags = listOf("Quick Serve", "Popular"),
             menuItems = listOf(
-                MenuItem("Mie Kangkung", 20000, "vegan_food"),
-                MenuItem("Satay for Vegan", 25000, "vegan_food")
-            )
+                MenuItem("Mie Kangkung", 20000, R.drawable.vegan_food),
+                MenuItem("Satay for Vegan", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         )
     )
 }
@@ -598,27 +770,31 @@ fun getBigDiscountItems(): List<RestoItem> {
     return listOf(
         RestoItem(
             imageRes = R.drawable.vegan_smoothie,
+            restaurantId = "3",
             name = "Losing Hut",
             rating = 4.5,
             time = "30 MINS",
             distance = "2.0 Km",
             tags = listOf("Cheap", "Discount"),
             menuItems = listOf(
-                MenuItem("Vegetable Pizza", 20000, "vegan_food"),
-                MenuItem("Cream Soup", 25000, "vegan_food")
-            )
+                MenuItem("Vegetable Pizza", 20000, R.drawable.vegan_food),
+                MenuItem("Cream Soup", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.vegan_food,
+            restaurantId = "4",
             name = "Festival",
             rating = 4.3,
             time = "25 MINS",
             distance = "1.5 Km",
             tags = listOf("Deal", "Limited"),
             menuItems = listOf(
-                MenuItem("Candy", 20000, "vegan_food"),
-                MenuItem("Cookies", 25000, "vegan_food")
-            )
+                MenuItem("Candy", 20000, R.drawable.vegan_food),
+                MenuItem("Cookies", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         )
     )
 }
@@ -627,27 +803,31 @@ fun getBestSellerItems(): List<RestoItem> {
     return listOf(
         RestoItem(
             imageRes = R.drawable.vegan_food,
+            restaurantId = "5",
             name = "Resto Salad Sayur",
             rating = 4.9,
             time = "20 MINS",
             distance = "1.2 Km",
             tags = listOf("Best Resto", "Top Rated"),
             menuItems = listOf(
-                MenuItem("Salad Buah", 20000, "vegan_food"),
-                MenuItem("Sup Sehat", 25000, "vegan_food")
-            )
+                MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
+            restaurantId = "6",
             name = "RM. Vegan Indo",
             rating = 4.8,
             time = "15 MINS",
             distance = "1.0 Km",
             tags = listOf("Recommended", "Vegan"),
             menuItems = listOf(
-                MenuItem("Salad Buah", 20000, "vegan_food"),
-                MenuItem("Sup Sehat", 25000, "vegan_food")
-            )
+                MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         )
     )
 }
@@ -656,39 +836,45 @@ fun getRestoItems(): List<RestoItem> {
     return listOf(
         RestoItem(
             imageRes = R.drawable.resto_image,
+            restaurantId = "7",
             name = "Resto Salad Sayur",
             rating = 4.5,
             time = "20 MINS",
             distance = "1.5 Km",
             tags = listOf("Best Resto", "Cheap"),
             menuItems = listOf(
-                MenuItem("Salad Buah", 20000, "vegan_food"),
-                MenuItem("Sup Sehat", 25000, "vegan_food")
-            )
+                MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.vegan_food,
+            restaurantId = "8",
             name = "RM. Vegan Indo",
             rating = 4.7,
             time = "20 MINS",
             distance = "1.5 Km",
             tags = listOf("Near You", "Recommend"),
             menuItems = listOf(
-                MenuItem("Pecel Vegan", 18000, "vegan_food"),
-                MenuItem("Sate Vegan", 22000, "vegan_food")
-            )
+                MenuItem("Pecel Vegan", 18000, R.drawable.vegan_food),
+                MenuItem("Sate Vegan", 22000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.resto_image,
+            restaurantId = "9",
             name = "Resto Jepang Fusion",
             rating = 4.8,
             time = "25 MINS",
             distance = "2.0 Km",
             tags = listOf("Flexitarian", "Popular"),
             menuItems = listOf(
-                MenuItem("Ramen Vegan", 30000, "vegan_food"),
-                MenuItem("Sushi Vegan", 28000, "vegan_food")
-            )
+                MenuItem("Ramen Vegan", 30000, R.drawable.vegan_food),
+                MenuItem("Sushi Vegan", 28000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
         )
     )
 }

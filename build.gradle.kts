@@ -1,5 +1,3 @@
-// build.gradle (Project-Level)
-
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.jetbrains.kotlin.android) version "1.9.0" apply false

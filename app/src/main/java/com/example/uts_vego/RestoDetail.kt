@@ -1,5 +1,6 @@
 package com.example.uts_vego
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,30 +26,45 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
 @Composable
-fun RestoDetailScreen(navController: NavController, restoItem: RestoItem, cartViewModel: CartViewModel) {
+fun RestoDetailScreen(
+    navController: NavController,
+    restoItem: RestoItem,
+    cartViewModel: CartViewModel
+) {
     val cartItems by cartViewModel.cartItemsState.collectAsState()
+
+    LaunchedEffect(restoItem.restaurantId) {
+        cartViewModel.fetchCartItemsByRestaurant(restoItem.restaurantId)
+    }
+
+    val restaurantCartItems = cartItems
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(text = restoItem.name, fontSize = 20.sp) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                backgroundColor = Color.White
-            )
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFFFA500))
+                    .statusBarsPadding()
+            ) {
+                TopAppBar(
+                    title = { Text(text = restoItem.name, fontSize = 20.sp, color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    },
+                    backgroundColor = Color(0xFFFFA500)
+                )
+            }
         },
         bottomBar = {
-            if (cartItems.isNotEmpty()) {
-                // Menggunakan CustomBottomCartBar yang sudah disesuaikan
+            if (restaurantCartItems.isNotEmpty()) {
                 CustomBottomCartBar(
-                    itemCount = cartItems.sumOf { it.quantity },
-                    totalPrice = cartItems.sumOf { it.price * it.quantity },
+                    itemCount = restaurantCartItems.sumOf { it.quantity },
+                    totalPrice = restaurantCartItems.sumOf { it.price * it.quantity },
                     restaurantName = restoItem.name,
                     onCheckoutClicked = {
-                        navController.navigate("checkout_page")
+                        navController.navigate("checkout_page/${restoItem.restaurantId}")
                     }
                 )
             }
@@ -61,61 +76,31 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem, cartVi
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Gambar resto
+            // Gambar restoran menggunakan AsyncImage
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
             ) {
-                Image(
-                    painter = painterResource(id = restoItem.imageRes),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "${restoItem.name} - Gading Serpong",
-                        style = MaterialTheme.typography.h6,
-                        fontWeight = FontWeight.Bold
+                if (!restoItem.imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = restoItem.imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = Color.Yellow
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${restoItem.rating} • ${restoItem.time} • ${restoItem.distance}",
-                            style = MaterialTheme.typography.body2,
-                            color = Color.Gray
-                        )
-                    }
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.resto_image),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Menu",
-                style = MaterialTheme.typography.h6,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -127,7 +112,7 @@ fun RestoDetailScreen(navController: NavController, restoItem: RestoItem, cartVi
                     MenuCard(
                         menu = menu,
                         onAddToCart = {
-                            cartViewModel.addToCart(menu)
+                            cartViewModel.addToCart(menu, restoItem.restaurantId, restoItem.name)
                         }
                     )
                 }
@@ -146,21 +131,30 @@ fun MenuCard(menu: MenuItem, onAddToCart: () -> Unit) {
             .height(180.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(8.dp)
             ) {
-                if (menu.image.isNotEmpty()) {
+                if (!menu.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = menu.image,
+                        model = menu.imageUrl,
                         contentDescription = null,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Crop
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.vegan_food),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(16.dp))
                     )
                 }
 
@@ -204,63 +198,65 @@ fun CustomBottomCartBar(
     restaurantName: String,
     onCheckoutClicked: () -> Unit
 ) {
-    Card(
-        backgroundColor = Color(0xFFFFA500),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        elevation = 8.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Bagian kiri
-            Column(
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "$itemCount Menu",
-                    color = Color.White,
-                    style = MaterialTheme.typography.subtitle1,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Pesan antar dari $restaurantName",
-                    color = Color.White,
-                    style = MaterialTheme.typography.caption
-                )
-            }
+    Log.d("CustomBottomCartBar", "ItemCount: $itemCount, TotalPrice: $totalPrice, Restaurant: $restaurantName")
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Rp $totalPrice",
-                    color = Color.White,
-                    style = MaterialTheme.typography.subtitle1,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-                Button(
-                    onClick = { onCheckoutClicked() },
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.White),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+    if (itemCount > 0) {
+        Card(
+            backgroundColor = Color(0xFFFFA500),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            elevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_cart),
-                            contentDescription = "Cart",
-                            tint = Color(0xFFFFA500)
-                        )
+                    Text(
+                        text = "$itemCount Menu",
+                        color = Color.White,
+                        style = MaterialTheme.typography.subtitle1,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Pesan antar dari $restaurantName",
+                        color = Color.White,
+                        style = MaterialTheme.typography.caption
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Rp $totalPrice",
+                        color = Color.White,
+                        style = MaterialTheme.typography.subtitle1,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Button(
+                        onClick = { onCheckoutClicked() },
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.White),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_cart),
+                                contentDescription = "Cart",
+                                tint = Color(0xFFFFA500)
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
-
