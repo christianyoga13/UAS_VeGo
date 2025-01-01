@@ -274,7 +274,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                     ReusableRestoSection(
                         title = "New Restaurants",
                         items = viewModel.restoList,
-                        onSeeAllClick = { /* Handle See All */ },
+                        onSeeAllClick = { navController.navigate("seeAll/New Restaurants") },
                         onCardClick = { restoItem ->
                             navController.navigate("restoDetail/${restoItem.name}")
                         }
@@ -285,7 +285,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                 ReusableRestoSection(
                     title = "24 Hours",
                     items = getRestoItems(),
-                    onSeeAllClick = { /* Handle See All */ },
+                    onSeeAllClick = { navController.navigate("seeAll/24 Hours") },
                     onCardClick = { restoItem ->
                         navController.navigate("restoDetail/${restoItem.name}")
                     }
@@ -295,7 +295,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                 ReusableRestoSection(
                     title = "Fast Serve",
                     items = getFastServeItems(),
-                    onSeeAllClick = { /* Handle See All */ },
+                    onSeeAllClick = { navController.navigate("seeAll/Fast Serve") },
                     onCardClick = { restoItem ->
                         navController.navigate("restoDetail/${restoItem.name}")
                     }
@@ -668,7 +668,7 @@ fun RestoCard(restoItem: RestoItem, onClick: () -> Unit) {
             } else {
                 // Jika tidak ada gambar, gunakan placeholder
                 Image(
-                    painter = painterResource(id = R.drawable.profile_placeholder),
+                    painter = painterResource(id = R.drawable.vegan_food),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
