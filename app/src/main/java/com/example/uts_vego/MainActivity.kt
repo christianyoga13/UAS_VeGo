@@ -184,7 +184,16 @@
                             cartViewModel = cartViewModel
                         )
                     }
-
+                    composable("seeAll/{title}") { backStackEntry ->
+                        val title = backStackEntry.arguments?.getString("title") ?: "All Restaurants"
+                        val restoList = when (title) {
+                            "New Restaurants" -> restoViewModel.restoList
+                            "24 Hours" -> getRestoItems()
+                            "Fast Serve" -> getFastServeItems()
+                            else -> emptyList()
+                        }
+                        SeeAllScreen(title = title, restoList = restoList, navController = navController)
+                    }
                     composable("recipe") {
                         RecipeListScreen(onAddRecipeClick = {
                             navController.navigate("addRecipe")
