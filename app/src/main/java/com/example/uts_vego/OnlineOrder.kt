@@ -1,6 +1,7 @@
 package com.example.uts_vego
 
 import android.os.Bundle
+import android.view.Menu
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -265,7 +266,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                 )
                 Carousel(items = items)
                 Spacer(modifier = Modifier.height(24.dp))
-                ButtonGroup()
+                ButtonGroup(navController)
                 Spacer(modifier = Modifier.height(24.dp))
                 OrderNowCarousel()
                 Spacer(modifier = Modifier.height(24.dp))
@@ -284,8 +285,8 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                 Spacer(modifier = Modifier.height(16.dp))
                 ReusableRestoSection(
                     title = "24 Hours",
-                    items = getRestoItems(),
-                    onSeeAllClick = { navController.navigate("seeAll/24 Hours") },
+                    items = getRestoItems() + get24HourItems(),
+                    onSeeAllClick = { navController.navigate("seeAll/Get Resto") },
                     onCardClick = { restoItem ->
                         navController.navigate("restoDetail/${restoItem.name}")
                     }
@@ -294,7 +295,7 @@ fun OnlineOrderScreen(navController: NavController, viewModel: RestoViewModel) {
                 Spacer(modifier = Modifier.height(16.dp))
                 ReusableRestoSection(
                     title = "Fast Serve",
-                    items = getFastServeItems(),
+                    items = getFastServeItems() + getBigDiscountItems() + getBestSellerItems(),
                     onSeeAllClick = { navController.navigate("seeAll/Fast Serve") },
                     onCardClick = { restoItem ->
                         navController.navigate("restoDetail/${restoItem.name}")
@@ -417,7 +418,7 @@ fun CarouselCard(item: CarouselItem) {
 }
 
 @Composable
-fun ButtonGroup() {
+fun ButtonGroup(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -431,14 +432,15 @@ fun ButtonGroup() {
                 title = "Open 24 Hours",
                 description = "Ready anytime",
                 icon = Icons.Default.AccessTime,
-                iconColor = Color.Green
+                iconColor = Color.Green,
+                onClick = { navController.navigate("seeAll/24 Hours") }
             )
             ButtonOneByOne(
                 title = "Fast Serve",
                 description = "Serve for u",
                 icon = Icons.Default.Restaurant,
-                iconColor = Color.Red
-
+                iconColor = Color.Red,
+                onClick = { navController.navigate("seeAll/Fast Serve") }
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -450,13 +452,15 @@ fun ButtonGroup() {
                 title = "Big Discount",
                 description = "Discount up to 50%",
                 icon = Icons.Default.Percent,
-                iconColor =  Color.Blue
+                iconColor = Color.Blue,
+                onClick = { navController.navigate("seeAll/Big Discount") }
             )
             ButtonOneByOne(
                 title = "Best Seller",
                 description = "Recommended",
                 icon = Icons.Default.Star,
-                iconColor = Color.Yellow
+                iconColor = Color.Yellow,
+                onClick = { navController.navigate("seeAll/Best Seller") }
             )
         }
     }
@@ -467,7 +471,8 @@ fun ButtonOneByOne(
     title: String,
     description: String,
     icon: ImageVector,
-    iconColor: Color
+    iconColor: Color,
+    onClick: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -475,6 +480,7 @@ fun ButtonOneByOne(
         modifier = Modifier
             .width(160.dp)
             .height(80.dp)
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -509,6 +515,7 @@ fun ButtonOneByOne(
         }
     }
 }
+
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
@@ -778,21 +785,24 @@ fun getBigDiscountItems(): List<RestoItem> {
             tags = listOf("Cheap", "Discount"),
             menuItems = listOf(
                 MenuItem("Vegetable Pizza", 20000, R.drawable.vegan_food),
-                MenuItem("Cream Soup", 25000, R.drawable.vegan_food)
+                MenuItem("Cream Soup", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Burger", 22000, R.drawable.vegan_food),
+                MenuItem("Vegan Sandwich", 18000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         ),
         RestoItem(
             imageRes = R.drawable.vegan_food,
             restaurantId = "4",
-            name = "Festival",
+            name = "Festival Cake",
             rating = 4.3,
             time = "25 MINS",
             distance = "1.5 Km",
             tags = listOf("Deal", "Limited"),
             menuItems = listOf(
                 MenuItem("Candy", 20000, R.drawable.vegan_food),
-                MenuItem("Cookies", 25000, R.drawable.vegan_food)
+                MenuItem("Cookies", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Cake", 22000, R.drawable.vegan_food),
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         )
@@ -811,7 +821,9 @@ fun getBestSellerItems(): List<RestoItem> {
             tags = listOf("Best Resto", "Top Rated"),
             menuItems = listOf(
                 MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
-                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food),
+                MenuItem("Nasi Goreng", 22000, R.drawable.vegan_food),
+                MenuItem("Mie Ayam", 18000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         ),
@@ -825,7 +837,9 @@ fun getBestSellerItems(): List<RestoItem> {
             tags = listOf("Recommended", "Vegan"),
             menuItems = listOf(
                 MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
-                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food),
+                MenuItem("Nasi Goreng", 22000, R.drawable.vegan_food),
+                MenuItem("Mie Ayam", 18000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         )
@@ -844,7 +858,10 @@ fun getRestoItems(): List<RestoItem> {
             tags = listOf("Best Resto", "Cheap"),
             menuItems = listOf(
                 MenuItem("Salad Buah", 20000, R.drawable.vegan_food),
-                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food)
+                MenuItem("Sup Sehat", 25000, R.drawable.vegan_food),
+                MenuItem("Garang Asem", 22000, R.drawable.vegan_food),
+                MenuItem("Mie Ayam", 18000, R.drawable.vegan_food),
+                MenuItem("Gado-Gado", 20000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         ),
@@ -858,7 +875,9 @@ fun getRestoItems(): List<RestoItem> {
             tags = listOf("Near You", "Recommend"),
             menuItems = listOf(
                 MenuItem("Pecel Vegan", 18000, R.drawable.vegan_food),
-                MenuItem("Sate Vegan", 22000, R.drawable.vegan_food)
+                MenuItem("Sate Vegan", 22000, R.drawable.vegan_food),
+                MenuItem("Steak Vegan", 25000, R.drawable.vegan_food),
+                MenuItem("Nasi Goreng Vegan", 25000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         ),
@@ -872,7 +891,63 @@ fun getRestoItems(): List<RestoItem> {
             tags = listOf("Flexitarian", "Popular"),
             menuItems = listOf(
                 MenuItem("Ramen Vegan", 30000, R.drawable.vegan_food),
-                MenuItem("Sushi Vegan", 28000, R.drawable.vegan_food)
+                MenuItem("Sushi Vegan", 28000, R.drawable.vegan_food),
+                MenuItem("Donburi Vegan", 25000, R.drawable.vegan_food),
+                MenuItem("Udon Vegan", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        )
+    )
+}
+
+fun get24HourItems(): List<RestoItem> {
+    return listOf(
+        RestoItem(
+            imageRes = R.drawable.vegan_smoothie,
+            restaurantId = "10",
+            name = "Juice House",
+            rating = 4.5,
+            time = "24 HOURS",
+            distance = "1.5 Km",
+            tags = listOf("Fresh", "Healthy"),
+            menuItems = listOf(
+                MenuItem("Orange Juice", 15000, R.drawable.vegan_food),
+                MenuItem("Apple Juice", 15000, R.drawable.vegan_food),
+                MenuItem("Carrot Juice", 15000, R.drawable.vegan_food),
+                MenuItem("Mixed Juice", 20000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        ),
+        RestoItem(
+            imageRes = R.drawable.vegan_food,
+            restaurantId = "11",
+            name = "Vegan House",
+            rating = 4.7,
+            time = "24 HOURS",
+            distance = "1.5 Km",
+            tags = listOf("Vegan", "Healthy"),
+            menuItems = listOf(
+                MenuItem("Vegan Burger", 20000, R.drawable.vegan_food),
+                MenuItem("Vegan Pizza", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Pasta", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Noodles", 25000, R.drawable.vegan_food)
+            ),
+            location = Location(-6.248533599167057, 106.62296950636762)
+        ),
+        RestoItem(
+            imageRes = R.drawable.resto_image,
+            restaurantId = "12",
+            name = "Vegan Resto",
+            rating = 4.8,
+            time = "24 HOURS",
+            distance = "1.5 Km",
+            tags = listOf("Vegan", "Healthy"),
+            menuItems = listOf(
+                MenuItem("Vegan Salad", 20000, R.drawable.vegan_food),
+                MenuItem("Vegan Soup", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Noodles", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Rice", 25000, R.drawable.vegan_food),
+                MenuItem("Vegan Burger", 25000, R.drawable.vegan_food)
             ),
             location = Location(-6.248533599167057, 106.62296950636762)
         )
