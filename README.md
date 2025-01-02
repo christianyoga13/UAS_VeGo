@@ -1,7 +1,9 @@
+Kelompok 1 
 Vego adalah aplikasi yang memudahkan vegan dan vegetarian menjalani gaya hidup sehat. Fitur utama Vego mencakup:
 - Online Order: Pesan makanan vegan/vegetarian dengan mudah.
 - Forum Sharing: Berbagi tips, resep, dan pengalaman dengan komunitas.
 - Maps: Temukan restoran dan toko vegan/vegetarian terdekat.
+- Shake to get discount : Menggunakan Sensor Motion untuk mendapatkan promo diskon.
 Vego adalah teman setia untuk hidup lebih sehat dan ramah lingkungan.
 
 KELOMPOK
@@ -14,6 +16,9 @@ Fitur-fitur yang sudah diimplementasikan
 - Login, Sign In
 - UI
 - Profile
-
-Screen Record Penjelasan
-https://drive.google.com/file/d/1wmvka4pQns379BgdNUQUAtNaGF72GL5o/view?usp=sharing
+- Map
+- Forum
+- Recipe Sharing
+- Online Order
+- Motion Detection
+- Admin
