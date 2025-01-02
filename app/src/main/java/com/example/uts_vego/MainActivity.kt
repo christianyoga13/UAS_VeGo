@@ -189,8 +189,12 @@
                         val title = backStackEntry.arguments?.getString("title") ?: "All Restaurants"
                         val restoList = when (title) {
                             "New Restaurants" -> restoViewModel.restoList
-                            "24 Hours" -> getRestoItems()
+                            "Get Resto" -> getRestoItems()
                             "Fast Serve" -> getFastServeItems()
+                            "Big Discount" -> getBigDiscountItems()
+                            "Best Seller" -> getBestSellerItems()
+                            "Best Pick" -> getBestPickRestaurants()
+                            "24 Hours" -> get24HourItems()
                             else -> emptyList()
                         }
                         SeeAllScreen(title = title, restoList = restoList, navController = navController)
